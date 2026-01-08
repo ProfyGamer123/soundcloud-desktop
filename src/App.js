@@ -105,7 +105,6 @@ const translations = {
     noHistory: 'Здесь пока пусто.',
     likedPlaylistsTitle: 'Ваши любимые плейлисты',
     noLikedPlaylists: 'Вы еще не лайкнули ни одного плейлиста.',
-    // scConnect: 'Синхронизация с SoundCloud', // Original scConnect, now moved and updated
     scConnectDesc: 'Войдите в аккаунт, чтобы лайки в приложении добавлялись на сайт',
     scConnectedAs: 'Подключено как',
     scDisconnect: 'Выйти',
@@ -327,7 +326,7 @@ function App() {
     backgroundImage: null,
     backgroundFit: 'cover',
     customThemeColor: '#ff5500',
-    discordClientId: '1458763452041662618', // Default
+    discordClientId: '1458763452041662618',
     dynamicBg: true,
     customTheme: {
       primary: '#ff5500',
@@ -361,7 +360,7 @@ function App() {
   const [viewingTrack, setViewingTrack] = useState(null);
   const [trackComments, setTrackComments] = useState([]);
   const [trackLikers, setTrackLikers] = useState([]);
-  const [activeDetailTab, setActiveDetailTab] = useState('info'); // 'info' or 'lyrics'
+  const [activeDetailTab, setActiveDetailTab] = useState('info');
   const [lyrics, setLyrics] = useState(null);
   const [loadingLyrics, setLoadingLyrics] = useState(false);
   const [vibeColors, setVibeColors] = useState(['#1a1a1a', '#000000']);
@@ -423,11 +422,8 @@ function App() {
     }
   }, [viewingTrack]);
 
-  // Tab Navigation with Mouse Side Buttons
   useEffect(() => {
     const handleMouseNav = (e) => {
-      // button 3 is Mouse 4 (Back by default), button 4 is Mouse 5 (Forward by default)
-      // User mapping: Mouse 4 -> Forward, Mouse 5 -> Backward
       if (e.button === 3 || e.button === 4) {
         const TABS = ['Home', 'Discover', 'Library', 'Playlists'];
         const currentIndex = TABS.indexOf(activeTab);
@@ -496,7 +492,6 @@ function App() {
     if (window.electronAPI) {
       const fontPath = await window.electronAPI.selectFont();
       if (fontPath) {
-        // Convert to file URL if it's not already
         const formattedPath = fontPath.startsWith('file://') ? fontPath : `file://${fontPath.replace(/\\/g, '/')}`;
         setSettings({ ...settings, customFont: formattedPath });
       }
@@ -507,7 +502,6 @@ function App() {
     setSettings({ ...settings, customFont: null });
   };
 
-  // Dynamically Apply Custom Font
   useEffect(() => {
     if (settings.customFont) {
       const fontName = 'CustomUserFont';
@@ -641,18 +635,6 @@ function App() {
     setSeek(newSeek);
     if (sound) {
       sound.seek(newSeek);
-      if (window.electronAPI && window.electronAPI.rpcUpdate && currentTrack) {
-        let artwork = currentTrack.artwork_url;
-        if (artwork) artwork = artwork.replace('large', 't500x500');
-        window.electronAPI.rpcUpdate({
-          title: currentTrack.title,
-          artist: currentTrack.user?.username,
-          duration: sound.duration() || (currentTrack.duration ? currentTrack.duration / 1000 : 0),
-          seek: newSeek,
-          isPlaying: isPlaying,
-          artworkUrl: artwork
-        });
-      }
     }
   };
 
@@ -676,19 +658,14 @@ function App() {
     let interval;
     if (isPlaying && sound) {
       interval = setInterval(() => {
-        // Only allow seek updates if we aren't fetching a new track stream
-        if (isTransitioningRef.current && !sound.playing()) return;
-
         const currentSeek = sound.seek();
         if (typeof currentSeek === 'number') {
           setSeek(currentSeek);
         }
 
-        // Auto-crossfade logic: start next track early
         const soundDuration = sound.duration();
         const useCrossfade = settings.crossfade && !isLoopingRef.current;
         if (useCrossfade && soundDuration > 0 && (soundDuration - currentSeek) <= (CROSSFADE_DURATION / 1000) && !isTransitioningRef.current) {
-          // Disable onend immediately for the current sound since we are handling it now
           sound.off('end');
           playNext();
         }
@@ -729,18 +706,15 @@ function App() {
     const q = queueRef.current;
     const current = currentTrackRef.current;
     if (!current || !q || q.length === 0) {
-      // console.log('PlayNext: No track or empty queue');
       setIsPlaying(false);
       return;
     }
 
     const currentId = String(current.id);
     const idx = q.findIndex(t => String(t.id) === currentId);
-    // console.log(`PlayNext: [${currentId}] Current index: ${idx} / Queue length: ${q.length}`);
 
     if (isShuffledRef.current && q.length > 1) {
       let nextIdx = Math.floor(Math.random() * q.length);
-      // Try to avoid playing the same track if the queue has more than 1 track
       if (idx !== -1 && q.length > 1 && nextIdx === idx) {
         nextIdx = (nextIdx + 1) % q.length;
       }
@@ -750,10 +724,8 @@ function App() {
 
     if (idx !== -1 && idx < q.length - 1) {
       const nextTrack = q[idx + 1];
-      // console.log('PlayNext: Moving track...');
       playTrackSecure(nextTrack);
     } else {
-      // console.log('PlayNext: End of queue');
       setIsPlaying(false);
     }
   };
@@ -769,7 +741,6 @@ function App() {
   };
 
   const playTrackSecure = async (track, newQueue = null) => {
-    // console.log('PlayTrack: starting', track.title);
 
     if (track.kind === 'playlist') {
       openPlaylist(track);
@@ -780,12 +751,10 @@ function App() {
     addToHistory(track);
 
     if (newQueue) {
-      // console.log('Updating queue, size:', newQueue.length);
       setCurrentQueue(newQueue);
       queueRef.current = newQueue;
     }
 
-    // Update UI and REF immediately to avoid stale closures in upcoming async operations
     setCurrentTrack(track);
     currentTrackRef.current = track;
     setSeek(0);
@@ -794,8 +763,6 @@ function App() {
     const previousSound = sound;
     const useCrossfade = settings.crossfade && !isLoopingRef.current;
 
-    // Remove ALL listeners from previous sound immediately
-    // This prevents its onpause/onstop from flipping setIsPlaying(false) during transition
     if (previousSound) {
       previousSound.off();
     }
@@ -815,7 +782,7 @@ function App() {
         loop: isLooping,
         onplay: () => {
           setIsPlaying(true);
-          setDuration(newSound.duration()); // Keep this to update duration immediately
+          setDuration(newSound.duration());
           if (useCrossfade) {
             newSound.fade(0, volume, (settings.crossfadeDuration || 2500));
           }
@@ -833,7 +800,6 @@ function App() {
             if (window.Howler.ctx.state === 'suspended') {
               window.Howler.ctx.resume();
             }
-            // Small delay to ensure Howl's audio node is connected
             setTimeout(() => {
               connectEQ();
             }, 100);
@@ -853,7 +819,6 @@ function App() {
           }
         },
         onload: () => {
-          // Update RPC once metadata is loaded to ensure accurate duration
           if (window.electronAPI && window.electronAPI.rpcUpdate) {
             let artwork = track.artwork_url;
             if (artwork) artwork = artwork.replace('large', 't500x500');
@@ -891,7 +856,6 @@ function App() {
           }
         },
         onend: () => {
-          // console.log('Track ended');
           if (isLoopingRef.current) {
             return;
           }
@@ -968,11 +932,8 @@ function App() {
 
 
     try {
-      // Ensure audio context is running
       if (ctx.state === 'suspended') {
-        ctx.resume().then(() => {
-          console.log('connectEQ: Audio context resumed');
-        });
+        ctx.resume();
       }
 
       window.Howler.masterGain.disconnect();
@@ -988,7 +949,6 @@ function App() {
 
       analyserRef.current.disconnect();
       analyserRef.current.connect(ctx.destination);
-      console.log('connectEQ: Audio chain connected successfully');
     } catch (e) {
       console.warn("EQ Connection issue:", e);
     }
@@ -1033,8 +993,6 @@ function App() {
 
           const user = await window.electronAPI.getSCUser();
           setScUser(user);
-
-          // Auto-sync likes and playlists from SoundCloud on startup
           if (user && user.permalink_url) {
             try {
               const { tracks, playlists } = await window.electronAPI.importSCLikes(user.permalink_url);
@@ -1098,7 +1056,6 @@ function App() {
   };
 
 
-  // MASTER Visualizer Effect
   useEffect(() => {
     const handleResize = () => {
       if (backgroundCanvasRef.current) {
@@ -1111,11 +1068,9 @@ function App() {
 
     if (!isPlaying) {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-      // Clear canvases on pause if desired, but maybe keep last frame?
       return () => window.removeEventListener('resize', handleResize);
     }
 
-    // Resolve current theme color
     let r = 255, g = 85, b = 0;
     const tempEl = document.createElement('div');
     tempEl.style.color = 'var(--primary)';
@@ -1134,8 +1089,6 @@ function App() {
       }
     }
     const rgb = `${r}, ${g}, ${b}`;
-
-    // Particle System state for background
     const particles = [];
     const maxParticles = 100;
 
@@ -1158,7 +1111,6 @@ function App() {
         const ctx = canvas.getContext('2d');
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Footer always uses simplified Bars/Waveform/Mirrored
         const footerStyle = ['Particles', 'Frequency'].includes(style) ? 'Bars' : style;
 
         if (footerStyle === 'Bars') {
@@ -1207,7 +1159,6 @@ function App() {
         if (Math.abs(canvas.height - canvas.clientHeight) > 5) canvas.height = canvas.clientHeight;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Header uses standard styles
         if (style === 'Bars' || style === 'Particles' || style === 'Frequency') {
           const barWidth = (canvas.width / bufferLength) * 2.5;
           let x = 0;
@@ -1683,7 +1634,6 @@ function App() {
           </div>
         </div>
 
-
         <div style={{ display: 'flex', gap: '32px', borderBottom: '1px solid var(--border-dim)', marginBottom: '32px' }}>
           <button
             onClick={() => setArtistTab('tracks')}
@@ -1735,6 +1685,7 @@ function App() {
           </button>
         </div>
 
+
         <div className="track-grid">
           {artistTab === 'tracks' ? (
             artistTracks.map(track => renderTrackCard(track, artistTracks))
@@ -1752,7 +1703,7 @@ function App() {
             )
           )}
         </div>
-      </div>
+      </div >
     );
   };
 
@@ -1762,7 +1713,6 @@ function App() {
 
     return (
       <div className="content" style={{ padding: 0 }}>
-        {/* HEADER */}
         <div style={{
           minHeight: '340px',
           background: `linear-gradient(135deg, ${viewingTrack.user?.avatar_url ? '#1a1a1a' : '#333'}, #000)`,
@@ -1833,11 +1783,8 @@ function App() {
           </div>
         </div>
 
-        {/* BODY */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '40px', padding: '40px' }}>
-          {/* LEFT: INFO & COMMENTS & LYRICS */}
           <div>
-            {/* TABS */}
             <div style={{ display: 'flex', gap: '24px', marginBottom: '30px', borderBottom: '1px solid var(--border-dim)' }}>
               <button
                 onClick={() => setActiveDetailTab('info')}
@@ -1867,7 +1814,6 @@ function App() {
 
             {activeDetailTab === 'info' ? (
               <>
-                {/* Actions */}
                 <div style={{ display: 'flex', gap: '12px', marginBottom: '30px', borderBottom: '1px solid var(--border-dim)', paddingBottom: '20px' }}>
                   <button
                     className={`action-btn ${isLiked(viewingTrack) ? 'active' : ''}`}
@@ -1885,14 +1831,12 @@ function App() {
                   <button style={{ background: 'var(--bg-elevated)', color: 'var(--text-main)', border: '1px solid var(--border-dim)', padding: '8px 16px', borderRadius: '4px', cursor: 'not-allowed', opacity: 0.7, fontSize: '13px' }}>Share</button>
                 </div>
 
-                {/* Description */}
                 {viewingTrack.description && (
                   <div style={{ marginBottom: '40px', color: 'var(--text-secondary)', lineHeight: '1.6', whiteSpace: 'pre-wrap', fontSize: '14px' }}>
                     {viewingTrack.description}
                   </div>
                 )}
 
-                {/* Comments */}
                 <h3 style={{ borderBottom: '1px solid var(--border-dim)', paddingBottom: '10px', marginBottom: '20px' }}>
                   {trackComments.length} comments
                 </h3>
@@ -1924,7 +1868,6 @@ function App() {
                 </div>
               </>
             ) : (
-              /* LYRICS TAB */
               <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8', fontSize: '16px', color: 'var(--text-main)' }}>
                 {loadingLyrics ? (
                   <div style={{ color: 'var(--text-secondary)' }}>Searching Genius...</div>
@@ -1964,7 +1907,6 @@ function App() {
             )}
           </div>
 
-          {/* RIGHT: SIDEBAR */}
           <div>
             <div
               onClick={() => { setViewingTrack(null); openArtist(viewingTrack.user); }}
@@ -2231,7 +2173,6 @@ function App() {
                     <div className="custom-theme-editor" style={{ width: '100%', background: 'var(--bg-elevated)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-dim)' }}>
                       <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Theme Editor</h4>
 
-                      {/* Color Pickers */}
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
                         {[
                           { label: 'Primary Color', key: 'primary' },

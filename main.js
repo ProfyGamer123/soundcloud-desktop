@@ -1,6 +1,4 @@
 const { app, BrowserWindow, ipcMain, session, Tray, Menu, globalShortcut, dialog, net: electronNet } = require('electron');
-
-// Load environment variables
 require('dotenv').config();
 
 app.name = 'SoundCloud Desktop';
@@ -26,17 +24,8 @@ let rpc;
 let rpcClientId = '1458763452041662618'; // Public Discord Application ID (Safe to share)
 const md5 = require('md5');
 
-const LASTFM_API_KEY = 'YOUR_LASTFM_API_KEY'; // You should replace this with a real key if you have one, or user can provide it
-const LASTFM_SHARED_SECRET = 'YOUR_LASTFM_SHARED_SECRET'; // Same here
-// Ideally these should be in .env but for a public build sometimes hardcoded "Public" keys are used like Discord ID. 
-// Since I don't have a real Last.fm key for this app, I will implement the logic assuming the user or you will provide one or I will leave placeholders.
-// Actually, for a real feature we need a key. I will add placeholders and logic.
-// Logic: 
-// 1. Get Token -> User approves in browser
-// 2. Get Session -> Store Session
-// 3. Scrobble / NowPlaying
-
-// Let's implement the generic handlers.
+const LASTFM_API_KEY = 'YOUR_LASTFM_API_KEY';
+const LASTFM_SHARED_SECRET = 'YOUR_LASTFM_SHARED_SECRET';
 const LASTFM_API_ROOT = 'http://ws.audioscrobbler.com/2.0/';
 
 function signLastFmParams(params, secret) {
@@ -52,16 +41,8 @@ function signLastFmParams(params, secret) {
 }
 
 ipcMain.handle('lastfm-get-token', async () => {
-  // 1. Fetch Request Token
-  // We actually need an API KEY. Since I cannot generate one for you right now without visiting Last.fm,
-  // I will write the code assuming an API KEY is present in process.env or settings.
-  // For now, let's look for it in env.
-  const apiKey = process.env.LASTFM_API_KEY || '42f75f92a1059f145f946ed71c356396'; // Using a public test key if available or placeholder. 
-  // Wait, '42f75f92a1059f145f946ed71c356396' is NOT a valid key. I will use a placeholder.
-  if (!process.env.LASTFM_API_KEY) {
-    // throw new Error('Last.fm API Key not configured');
-  }
-  return null; // Logic placeholder until we have real keys.
+  const apiKey = process.env.LASTFM_API_KEY || '42f75f92a1059f145f946ed71c356396';
+  return null;
 });
 
 let rpcReady = false;
@@ -92,10 +73,8 @@ function initRPC(clientId) {
   });
 }
 
-// Initialize with default or loaded settings later
 initRPC(rpcClientId);
 
-// Rate limit constants
 const RATE_LIMIT_DELAY = 1500;
 let lastSendTime = 0;
 let latestActivity = null;
@@ -186,7 +165,7 @@ ipcMain.on('rpc-clear', () => {
 
 
 
-let CLIENT_ID = process.env.SOUNDCLOUD_CLIENT_ID; // Loaded from .env
+let CLIENT_ID = process.env.SOUNDCLOUD_CLIENT_ID;
 let OAUTH_TOKEN = null;
 let SC_USER = null;
 
@@ -283,7 +262,6 @@ async function getClientId() {
 
 async function makeRequest(url, options = {}, retries = 1) {
   return new Promise(async (resolve, reject) => {
-    // Auto-fetch ID if missing before request
     if (url.includes('client_id=undefined') || !CLIENT_ID) {
       await getClientId();
       url = url.replace('client_id=undefined', `client_id=${CLIENT_ID}`);
@@ -310,10 +288,8 @@ async function makeRequest(url, options = {}, retries = 1) {
         const data = Buffer.concat(chunks);
         const dataString = data.toString();
 
-        // Clear chunks array to free memory
         chunks.length = 0;
 
-        // Handle 401 Unauthorized by refreshing Client ID
         if (response.statusCode === 401 && retries > 0 && !url.includes('soundcloud.com/connect')) {
           await getClientId();
           const newUrl = url.includes('client_id=')
@@ -376,7 +352,6 @@ function createWindow() {
   });
 
   mainWindow.on('closed', () => {
-    // Window is already destroyed, just clean up reference
     mainWindow = null;
   });
 
@@ -437,7 +412,6 @@ function createWindow() {
   });
 }
 
-// Update Configuration
 autoUpdater.autoDownload = true;
 autoUpdater.allowPrerelease = false;
 
@@ -510,9 +484,7 @@ ipcMain.handle('get-track-stream', async (event, trackId) => {
   try {
     const cachePath = path.join(AUDIO_CACHE_DIR, `${trackId}.mp3`);
 
-
     if (fs.existsSync(cachePath)) {
-
       return `file://${cachePath}`;
     }
 
@@ -626,7 +598,6 @@ if (!fs.existsSync(AUDIO_CACHE_DIR)) {
   fs.mkdirSync(AUDIO_CACHE_DIR, { recursive: true });
 }
 
-// Clean old cache files to prevent disk space bloat
 function cleanOldCache() {
   try {
     const files = fs.readdirSync(AUDIO_CACHE_DIR);
@@ -653,7 +624,6 @@ function cleanOldCache() {
   }
 }
 
-// Run cache cleanup on startup
 cleanOldCache();
 
 let _likes = [];
@@ -678,7 +648,6 @@ ipcMain.handle('toggle-like', async (event, track) => {
     } else {
       _likes.unshift(track);
 
-      // Limit likes array to prevent memory bloat (max 2000 tracks)
       if (_likes.length > 2000) {
         _likes = _likes.slice(0, 2000);
       }
@@ -686,7 +655,6 @@ ipcMain.handle('toggle-like', async (event, track) => {
 
     fs.writeFile(LIKES_FILE, JSON.stringify(_likes), () => { });
 
-    // Sync to SoundCloud profile if connected - use browser session to bypass DataDome
     if (OAUTH_TOKEN && track.id && SC_USER) {
       syncLikeToBrowser(track.id, isLiking);
     }
@@ -698,7 +666,6 @@ ipcMain.handle('toggle-like', async (event, track) => {
   }
 });
 
-// Sync like/unlike through hidden browser window to bypass DataDome protection
 async function syncLikeToBrowser(trackId, isLiking) {
   let syncWindow = null;
 
@@ -713,10 +680,8 @@ async function syncLikeToBrowser(trackId, isLiking) {
       },
     });
 
-    // Load the track page (this ensures all cookies and session data are loaded)
     await syncWindow.loadURL(`https://soundcloud.com`);
 
-    // Execute the like/unlike via fetch in the browser context
     const method = isLiking ? 'PUT' : 'DELETE';
     const likeUrl = `https://api-v2.soundcloud.com/users/${SC_USER.id}/track_likes/${trackId}?client_id=${CLIENT_ID}`;
 
@@ -739,12 +704,9 @@ async function syncLikeToBrowser(trackId, isLiking) {
     `);
 
     if (result.ok) {
-      console.log(`✔ ${isLiking ? "Like" : "Unlike"} synced to SoundCloud`);
     } else {
-      console.log(`⚠ Sync response: ${result.status || result.error}`);
     }
   } catch (e) {
-    // Silent fail
   } finally {
     if (syncWindow && !syncWindow.isDestroyed()) {
       syncWindow.close();
@@ -771,7 +733,6 @@ ipcMain.handle('get-recommendations', async (event, trackIds) => {
       'Accept': 'application/json'
     };
 
-    // Use specific track IDs if provided, otherwise pick from history/likes
     let seedTrackIds = trackIds;
     if (!seedTrackIds || seedTrackIds.length === 0) {
       try {
@@ -1452,9 +1413,6 @@ ipcMain.handle('get-playlist-details', async (event, playlistId) => {
       return final;
     });
 
-    // Clear Map to free memory
-    fetchedTracksMap.clear();
-
     return result;
 
   } catch (error) {
@@ -1503,9 +1461,6 @@ function createTray() {
     }
   }
 
-  // Resize for better compatibility if needed, though usually ICO is multi-size
-  // icon = icon.resize({ width: 16, height: 16 });
-
   tray = new Tray(icon);
 
   const contextMenu = Menu.buildFromTemplate([
@@ -1552,15 +1507,12 @@ app.on('before-quit', async () => {
   await cleanup();
 });
 
-// Handle forceful termination from terminal
 process.on('SIGINT', async () => {
-  console.log('SIGINT received');
   await cleanup();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM received');
   await cleanup();
   process.exit(0);
 });
