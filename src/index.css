@@ -1306,7 +1306,7 @@ body {
 
 .settings-modal {
   background-color: var(--bg-panel);
-  width: 720px;
+  width: 880px;
   max-width: 90vw;
   max-height: 85vh;
   border-radius: var(--radius-lg);
@@ -1364,7 +1364,7 @@ body {
 .settings-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
+  gap: 40px;
   align-items: start;
 }
 
@@ -1592,4 +1592,73 @@ body {
   .sidebar.open {
     transform: translateX(0);
   }
-}@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } } @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } } .lyrics-content::-webkit-scrollbar { width: 6px; } .lyrics-content::-webkit-scrollbar-track { background: transparent; } .lyrics-content::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 10px; } .lyrics-content::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.lyrics-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.lyrics-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.lyrics-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+
+.lyrics-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Glassy Vibe Styles */
+.App[data-vibe="true"] .sidebar {
+  background-color: rgba(18, 18, 20, 0.4) !important;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.App[data-vibe="true"] .main-content {
+  background: transparent !important;
+}
+
+.App[data-vibe="true"] .search-bar {
+  background-color: rgba(18, 18, 20, 0.4) !important;
+  backdrop-filter: blur(10px);
+}
+
+.App[data-vibe="true"] .track-card {
+  background-color: rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(5px);
+}
+
+.App[data-vibe="true"] .player {
+  background-color: rgba(9, 9, 11, 0.4) !important;
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+}
+
+.App[data-vibe="true"] .settings-modal {
+  background-color: rgba(18, 18, 20, 0.8) !important;
+  backdrop-filter: blur(20px);
+}

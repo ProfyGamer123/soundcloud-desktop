@@ -183,10 +183,7 @@ ipcMain.on('rpc-clear', () => {
   }
 });
 
-const { SocksProxyAgent } = require('socks-proxy-agent');
-const { HttpProxyAgent } = require('http-proxy-agent');
-const { HttpsProxyAgent } = require('https-proxy-agent');
-const { execSync } = require('child_process');
+
 
 
 let CLIENT_ID = process.env.SOUNDCLOUD_CLIENT_ID; // Loaded from .env
@@ -551,9 +548,6 @@ ipcMain.handle('get-track-stream', async (event, trackId) => {
 
 async function downloadTrackToCache(url, filePath) {
   try {
-    // For large file downloads, we still use axios for simplicity with streams
-    // but in a real DPI bypass scenario, we'd use native net. For now,
-    // since this is just the audio file, the OS level DPI bypass works better anyway.
     const response = await axios({
       method: 'GET',
       url: url,
@@ -691,22 +685,10 @@ ipcMain.handle('toggle-like', async (event, track) => {
     }
 
     fs.writeFile(LIKES_FILE, JSON.stringify(_likes), () => { });
-    // Sync to SoundCloud profile if connected
-    if (OAUTH_TOKEN && track.id && SC_USER) {
-      const likeUrl = `https://api-v2.soundcloud.com/users/${SC_USER.id}/track_likes/${track.id}?client_id=${CLIENT_ID}`;
-      const method = isLiking ? 'PUT' : 'DELETE';
 
-      // Use makeRequest which respects proxy settings
-      makeRequest(likeUrl, {
-        method: method,
-        headers: {
-          'Authorization': `OAuth ${OAUTH_TOKEN}`
-        }
-      }).then(() => {
-        console.log(`✔ ${method === "PUT" ? "Like" : "Unlike"} synced to SoundCloud`);
-      }).catch(e => {
-        console.warn('SC Sync error:', e.message || e);
-      });
+    // Sync to SoundCloud profile if connected - use browser session to bypass DataDome
+    if (OAUTH_TOKEN && track.id && SC_USER) {
+      syncLikeToBrowser(track.id, isLiking);
     }
 
     return _likes;
@@ -715,6 +697,60 @@ ipcMain.handle('toggle-like', async (event, track) => {
     throw error;
   }
 });
+
+// Sync like/unlike through hidden browser window to bypass DataDome protection
+async function syncLikeToBrowser(trackId, isLiking) {
+  let syncWindow = null;
+
+  try {
+    syncWindow = new BrowserWindow({
+      show: false,
+      width: 800,
+      height: 600,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Load the track page (this ensures all cookies and session data are loaded)
+    await syncWindow.loadURL(`https://soundcloud.com`);
+
+    // Execute the like/unlike via fetch in the browser context
+    const method = isLiking ? 'PUT' : 'DELETE';
+    const likeUrl = `https://api-v2.soundcloud.com/users/${SC_USER.id}/track_likes/${trackId}?client_id=${CLIENT_ID}`;
+
+    const result = await syncWindow.webContents.executeJavaScript(`
+      (async () => {
+        try {
+          const response = await fetch('${likeUrl}', {
+            method: '${method}',
+            headers: {
+              'Authorization': 'OAuth ${OAUTH_TOKEN}',
+              'Content-Type': 'application/json'
+            },
+            credentials: 'include'
+          });
+          return { ok: response.ok, status: response.status };
+        } catch (e) {
+          return { ok: false, error: e.message };
+        }
+      })();
+    `);
+
+    if (result.ok) {
+      console.log(`✔ ${isLiking ? "Like" : "Unlike"} synced to SoundCloud`);
+    } else {
+      console.log(`⚠ Sync response: ${result.status || result.error}`);
+    }
+  } catch (e) {
+    // Silent fail
+  } finally {
+    if (syncWindow && !syncWindow.isDestroyed()) {
+      syncWindow.close();
+    }
+  }
+}
 
 ipcMain.handle('clear-likes', async () => {
   try {
@@ -837,65 +873,11 @@ ipcMain.handle('get-settings', async () => {
   }
 });
 
-async function applyProxy(settings) {
-  if (settings && settings.proxyEnabled) {
-    let proxyUrl = settings.proxyUrl;
-    if (settings.proxyType === 'Builtin') {
-      proxyUrl = 'http://52.188.28.218:3128';
-    }
 
-    if (proxyUrl) {
-      try {
-        // console.log(`[PROXY] Activating: ${proxyUrl}`);
-        if (session.defaultSession) {
-          await session.defaultSession.setProxy({
-            proxyRules: proxyUrl,
-            proxyBypassRules: 'localhost,127.0.0.1'
-          });
-        }
-
-        // Use proper agents for axios (Universal SOCKS/HTTP/HTTPS support)
-        try {
-          const url = new URL(proxyUrl);
-          axios.defaults.proxy = false; // Disable default axios proxy logic
-
-          if (url.protocol.startsWith('socks')) {
-            const agent = new SocksProxyAgent(proxyUrl);
-            axios.defaults.httpAgent = agent;
-            axios.defaults.httpsAgent = agent;
-          } else {
-            const httpAgent = new HttpProxyAgent(proxyUrl);
-            const httpsAgent = new HttpsProxyAgent(proxyUrl);
-            axios.defaults.httpAgent = httpAgent;
-            axios.defaults.httpsAgent = httpsAgent;
-          }
-          axios.defaults.timeout = 25000;
-        } catch (e) {
-          // console.error('[PROXY] Agent creation failed:', e);
-        }
-        // console.log(`[PROXY] System-wide routing initialized.`);
-      } catch (e) {
-        console.error('[PROXY] Setup error:', e);
-      }
-    }
-  } else {
-    try {
-      if (session.defaultSession) {
-        await session.defaultSession.setProxy({ proxyRules: '' });
-      }
-      axios.defaults.proxy = false;
-      axios.defaults.httpAgent = null;
-      axios.defaults.httpsAgent = null;
-      axios.defaults.timeout = 30000;
-      // console.log('[PROXY] Disabled');
-    } catch (e) { }
-  }
-}
 
 ipcMain.handle('save-settings', async (event, settings) => {
   try {
     fs.writeFileSync(SETTINGS_FILE, JSON.stringify(settings));
-    applyProxy(settings);
     if (settings.discordClientId && settings.discordClientId !== rpcClientId) {
       initRPC(settings.discordClientId);
     }
@@ -1112,6 +1094,116 @@ ipcMain.handle('select-custom-background', async () => {
   fs.copyFileSync(sourcePath, destPath);
 
   return `file://${destPath.replace(/\\/g, '/')}`;
+});
+
+ipcMain.handle('get-comments', async (event, trackId) => {
+  try {
+    if (!CLIENT_ID) throw new Error('Client ID not found');
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/json'
+    };
+    const response = await makeRequest(`https://api-v2.soundcloud.com/tracks/${trackId}/comments?client_id=${CLIENT_ID}&limit=50&offset=0&threaded=0`, { headers });
+    return response.data.collection || [];
+  } catch (error) {
+    console.error('Error fetching comments:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('get-track-likers', async (event, trackId) => {
+  try {
+    if (!CLIENT_ID) throw new Error('Client ID not found');
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'Accept': 'application/json'
+    };
+    const response = await makeRequest(`https://api-v2.soundcloud.com/tracks/${trackId}/likers?client_id=${CLIENT_ID}&limit=9&offset=0`, { headers });
+    return response.data.collection || [];
+  } catch (error) {
+    console.error('Error fetching likers:', error);
+    return [];
+    return [];
+  }
+});
+
+ipcMain.handle('get-lyrics', async (event, { artist, title }) => {
+  try {
+    const query = encodeURIComponent(`${artist} ${title}`.trim());
+    // Increase per_page to allow smarter selection among top 5 results
+    const searchUrl = `https://genius.com/api/search/multi?per_page=5&q=${query}`;
+
+    const headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    };
+
+    const searchRes = await makeRequest(searchUrl, { headers });
+
+    let sections = searchRes.data?.response?.sections;
+    if (!sections) return null;
+
+    const songSection = sections.find(s => s.type === 'song');
+    if (!songSection || !songSection.hits || songSection.hits.length === 0) return null;
+
+    // Smart pick: try to find a match where the artist name is actually present
+    let hits = songSection.hits;
+    let bestHit = hits[0]; // Fallback to first hit
+
+    if (artist && artist.length > 0) {
+      const targetArtist = artist.toLowerCase();
+      const match = hits.find(h => {
+        const primaryArtist = h.result.primary_artist.name.toLowerCase();
+        return primaryArtist.includes(targetArtist) || targetArtist.includes(primaryArtist);
+      });
+      if (match) bestHit = match;
+    }
+
+    const songUrl = bestHit.result.url;
+    console.log(`[Lyrics] Selected hit: "${bestHit.result.full_title}" - URL: ${songUrl}`);
+
+    const pageRes = await makeRequest(songUrl, { headers });
+    const html = pageRes.data;
+
+    if (typeof html !== 'string') return null;
+
+    // Try multiple selectors as Genius changes their layout
+    // 1. Data Lyrics Container (Modern)
+    const regex = /<div[^>]*data-lyrics-container="true"[^>]*>([\s\S]*?)<\/div>/g;
+    let match;
+    let text = '';
+    while ((match = regex.exec(html)) !== null) {
+      text += match[1] + '\n';
+    }
+
+    // 2. Old style container (Fallback)
+    if (!text.trim()) {
+      const oldRegex = /<div[^>]*class="lyrics"[^>]*>([\s\S]*?)<\/div>/i;
+      const oldMatch = html.match(oldRegex);
+      if (oldMatch) text = oldMatch[1];
+    }
+
+    if (!text) {
+      console.warn(`[Lyrics] Scraper found no content at ${songUrl}`);
+      return null;
+    }
+
+    // Clean up HTML tags and entities
+    text = text
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<p>|<\/p>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#x27;/g, "'")
+      .replace(/&#39;/g, "'")
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>');
+
+    return text.trim();
+  } catch (error) {
+    console.error('Error fetching lyrics:', error);
+    return null;
+  }
 });
 
 ipcMain.handle('connect-soundcloud', async () => {
@@ -1371,6 +1463,30 @@ ipcMain.handle('get-playlist-details', async (event, playlistId) => {
   }
 });
 
+ipcMain.handle('select-font', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Select Custom Font',
+    filters: [
+      { name: 'Fonts', extensions: ['ttf', 'otf', 'woff', 'woff2'] }
+    ],
+    properties: ['openFile']
+  });
+  if (!result.canceled && result.filePaths.length > 0) {
+    return result.filePaths[0];
+  }
+  return null;
+});
+
+ipcMain.handle('select-image', async () => {
+  const { dialog } = require('electron');
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile'],
+    filters: [{ name: 'Images', extensions: ['jpg', 'png', 'gif', 'jpeg', 'webp'] }]
+  });
+  if (result.canceled || result.filePaths.length === 0) return null;
+  return result.filePaths[0].replace(/\\/g, '/');
+});
+
 function createTray() {
   const iconPath = path.join(__dirname, 'src', 'assets', process.platform === 'win32' ? 'icon.ico' : 'icon.png');
   console.log('Tray Icon Path:', iconPath);
@@ -1450,15 +1566,6 @@ process.on('SIGTERM', async () => {
 });
 
 app.whenReady().then(async () => {
-  // Load settings and apply proxy before ClientID fetch
-  let settings = defaultSettings;
-  try {
-    if (fs.existsSync(SETTINGS_FILE)) {
-      settings = JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8'));
-    }
-  } catch (e) { }
-  await applyProxy(settings);
-
   await getClientId();
   createWindow();
   createTray();

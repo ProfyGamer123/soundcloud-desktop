@@ -11,11 +11,10 @@
 <a name="english"></a>
 ## 🇺🇸 English
 
-**SoundCloud Desktop** is a powerful, feature-rich desktop client for SoundCloud built with Electron and React. It offers a premium listening experience with built-in ad blocking, regional restriction bypasses, and deep system integration.
+**SoundCloud Desktop** is a powerful, feature-rich desktop client for SoundCloud built with Electron and React. It offers a premium listening experience with built-in ad blocking and deep system integration.
 
 ### ✨ Key Features
 
-*   **🛡️ Bypass Restrictions**: Built-in modern networking engine compatible with DPI bypass tools (like GoodbyeDPI) and proxy support (SOCKS5/HTTP) to access SoundCloud from restricted regions.
 *   **🎮 Discord Rich Presence**: Displays your currently playing track, artist, and playback status directly in your Discord profile.
 *   **🚫 Ad-Free**: Enjoy uninterrupted listening without audio ads.
 *   **💾 Smart Caching**: Automatically caches played tracks to disk (`audio_cache`) to save bandwidth and allow offline playback of recently played songs.
@@ -36,11 +35,10 @@ Download the latest version for Windows from the [Releases Page](https://github.
 <a name="русский"></a>
 ## 🇷🇺 Русский
 
-**SoundCloud Desktop** — это мощный десктопный клиент для SoundCloud, разработанный на Electron и React. Приложение предоставляет премиальный опыт прослушивания со встроенной блокировкой рекламы, обходом региональных ограничений и глубокой интеграцией с системой.
+**SoundCloud Desktop** — это мощный десктопный клиент для SoundCloud, разработанный на Electron и React. Приложение предоставляет премиальный опыт прослушивания со встроенной блокировкой рекламы и глубокой интеграцией с системой.
 
 ### ✨ Основные возможности
 
-*   **🛡️ Обход блокировок**: Новый сетевой движок на базе `electron.net`, полностью совместимый с инструментами обхода DPI (например, GoodbyeDPI) и поддерживающий SOCKS5/HTTP прокси. Работает там, где официальный сайт недоступен.
 *   **🎮 Discord Rich Presence**: Показывает трек, который вы слушаете, артиста, обложку и статус воспроизведения в вашем профиле Discord.
 *   **🚫 Без рекламы**: Слушайте музыку без аудио-рекламы и перерывов.
 *   **💾 Умное кэширование**: Автоматически сохраняет прослушанные треки на диск, экономя трафик и позволяя слушать недавние песни без интернета.
@@ -55,3 +53,4 @@ Download the latest version for Windows from the [Releases Page](https://github.
 ### 🚀 Скачать и установить
 
 Скачайте последнюю версию (Setup.exe) со страницы [Релизы](https://github.com/dissstructed1337/soundcloud-desktop/releases/latest).
+

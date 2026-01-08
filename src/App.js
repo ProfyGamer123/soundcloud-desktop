@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Howl } from 'howler';
 import './index.css';
 
@@ -28,6 +28,8 @@ const translations = {
     languageDesc: 'Выберите язык интерфейса',
     crossfade: 'Кроссфейд',
     crossfadeDesc: 'Плавный переход между треками',
+    crossfadeDuration: 'Длительность перехода',
+    cfSeconds: 'сек',
     sidebarMode: 'Боковая панель',
     sidebarModeDesc: 'Вид навигационной панели',
     visualizer: 'Визуализатор',
@@ -41,8 +43,12 @@ const translations = {
     sidebarSlim: 'Узкая (слева)',
     close: 'Закрыть',
     save: 'Применить',
-    searchPlaceholder: 'Поиск...',
-    history: 'История',
+    searchPlaceholder: 'Поиск треков...',
+    customFont: 'Свой шрифт',
+    customFontDesc: 'Загрузите файл шрифта (.ttf, .otf), чтобы изменить стиль текста в приложении',
+    uploadFont: 'Загрузить шрифт',
+    resetFont: 'Сбросить',
+    scConnect: 'Подключить SoundCloud',
     likedTracks: 'Любимые треки',
     likedPlaylists: 'Любимые плейлисты',
     recent: 'Недавние',
@@ -70,6 +76,8 @@ const translations = {
     bgCover: 'Заполнение (Cover)',
     bgContain: 'Вместить (Contain)',
     bgFill: 'Растянуть (Fill)',
+    placeholderUrl: 'URL заглушки (изображения)',
+    upload: 'Загрузить',
     artistProfile: 'Профиль артиста',
     followers: 'подписчиков',
     likedTracksHeader: 'Понравившиеся треки',
@@ -97,7 +105,7 @@ const translations = {
     noHistory: 'Здесь пока пусто.',
     likedPlaylistsTitle: 'Ваши любимые плейлисты',
     noLikedPlaylists: 'Вы еще не лайкнули ни одного плейлиста.',
-    scConnect: 'Синхронизация с SoundCloud',
+    // scConnect: 'Синхронизация с SoundCloud', // Original scConnect, now moved and updated
     scConnectDesc: 'Войдите в аккаунт, чтобы лайки в приложении добавлялись на сайт',
     scConnectedAs: 'Подключено как',
     scDisconnect: 'Выйти',
@@ -117,20 +125,12 @@ const translations = {
     eqElectronic: 'Электроника',
     eqJazz: 'Джаз',
     eqClassical: 'Классика',
-    proxy: 'Прокси (Bypass)',
-    proxyDesc: 'Используйте прокси для обхода блокировок в вашей стране',
-    proxyEnable: 'Включить прокси',
-    proxyUrlPlaceholder: 'Адрес (напр. socks5://ip:port)',
-    proxyBuiltin: 'Встроенный (Shared)',
-    proxyCustom: 'Свой прокси',
-    proxyRestart: 'Может потребоваться перезапуск трека',
     discordRpc: 'Discord статус (RPC)',
     discordRpcDesc: 'Показывать музыку в статусе Discord',
     discordClientId: 'Client ID приложения',
     discordClientIdDesc: 'Ваш ID приложения из Discord Developer Portal',
-    connChecking: 'Проверка...',
-    connConnected: 'Подключено',
-    connDisconnected: 'Нет связи (Bypass?)',
+    dynamicBg: 'Живой фон (Vibe)',
+    dynamicBgDesc: 'Автоматическая генерация градиента под цвета обложки',
   },
   en: {
     home: 'Home',
@@ -157,6 +157,8 @@ const translations = {
     languageDesc: 'Select interface language',
     crossfade: 'Crossfade',
     crossfadeDesc: 'Smooth transitions between tracks',
+    crossfadeDuration: 'Transition Duration',
+    cfSeconds: 's',
     sidebarMode: 'Sidebar Layout',
     sidebarModeDesc: 'Navigation bar appearance',
     visualizer: 'Visualizer Style',
@@ -170,8 +172,12 @@ const translations = {
     sidebarSlim: 'Slim (Left)',
     close: 'Close',
     save: 'Save',
-    searchPlaceholder: 'Search...',
-    history: 'History',
+    searchPlaceholder: 'Search tracks...',
+    customFont: 'Custom Font',
+    customFontDesc: 'Upload a font file (.ttf, .otf) to change the app typography',
+    uploadFont: 'Upload Font',
+    resetFont: 'Reset',
+    scConnect: 'Connect SoundCloud',
     likedTracks: 'Liked Tracks',
     likedPlaylists: 'Liked Playlists',
     recent: 'Recent',
@@ -199,6 +205,8 @@ const translations = {
     bgCover: 'Cover',
     bgContain: 'Contain',
     bgFill: 'Fill',
+    placeholderUrl: 'Placeholder Image URL',
+    upload: 'Upload',
     artistProfile: 'Artist Profile',
     followers: 'followers',
     likedTracksHeader: 'Liked Tracks',
@@ -246,20 +254,12 @@ const translations = {
     eqElectronic: 'Electronic',
     eqJazz: 'Jazz',
     eqClassical: 'Classical',
-    proxy: 'Proxy (Bypass)',
-    proxyDesc: 'Use a proxy to bypass regional blocks in your country',
-    proxyEnable: 'Enable Proxy',
-    proxyUrlPlaceholder: 'Address (e.g. socks5://ip:port)',
-    proxyBuiltin: 'Built-in (Shared)',
-    proxyCustom: 'Custom Proxy',
-    proxyRestart: 'Track restart may be required',
     discordRpc: 'Discord Rich Presence',
     discordRpcDesc: 'Show what you are listening to on Discord',
     discordClientId: 'Application Client ID',
     discordClientIdDesc: 'Your Application ID from Discord Developer Portal',
-    connChecking: 'Checking...',
-    connConnected: 'Connected',
-    connDisconnected: 'Offline (Bypass?)',
+    dynamicBg: 'Dynamic Vibe',
+    dynamicBgDesc: 'Background adapts to the current track artwork',
   }
 };
 
@@ -282,6 +282,21 @@ function App() {
   const [activeTab, setActiveTab] = useState('Home');
   const [likedTracks, setLikedTracks] = useState([]);
   const [likedPlaylists, setLikedPlaylists] = useState([]);
+  const [likedTracksQuery, setLikedTracksQuery] = useState('');
+  const [libraryDisplayLimit, setLibraryDisplayLimit] = useState(50);
+
+  const filteredLikedTracks = useMemo(() => {
+    if (!likedTracksQuery) return likedTracks;
+    const lowerQuery = likedTracksQuery.toLowerCase();
+    return likedTracks.filter(track =>
+      track.title.toLowerCase().includes(lowerQuery) ||
+      (track.user && track.user.username.toLowerCase().includes(lowerQuery))
+    );
+  }, [likedTracks, likedTracksQuery]);
+
+  useEffect(() => {
+    setLibraryDisplayLimit(50);
+  }, [activeTab, likedTracksQuery]);
   const [selectedPlaylist, setSelectedPlaylist] = useState(null);
   const [selectedArtist, setSelectedArtist] = useState(null);
   const [artistTab, setArtistTab] = useState('tracks');
@@ -298,7 +313,6 @@ function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [isMini, setIsMini] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState('checking'); // 'checking', 'connected', 'disconnected'
 
 
   const [settings, setSettings] = useState({
@@ -308,14 +322,13 @@ function App() {
     eq: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     language: 'ru',
     crossfade: true,
+    crossfadeDuration: 2500,
     visualizerStyle: 'Bars',
     backgroundImage: null,
     backgroundFit: 'cover',
     customThemeColor: '#ff5500',
-    proxyEnabled: false,
-    proxyType: 'Builtin', // 'Builtin' or 'Custom'
-    proxyUrl: '',
     discordClientId: '1458763452041662618', // Default
+    dynamicBg: true,
     customTheme: {
       primary: '#ff5500',
       bgDark: '#000000',
@@ -324,7 +337,8 @@ function App() {
       textMain: '#ffffff',
       textSecondary: '#a1a1aa',
       cardSize: 180
-    }
+    },
+    customFont: null
   });
 
   const t = (key) => {
@@ -337,12 +351,190 @@ function App() {
   const analyserRef = useRef(null);
   const canvasRef = useRef(null);
   const backgroundCanvasRef = useRef(null);
+  const headerCanvasRef = useRef(null);
   const animationFrameRef = useRef(null);
-  const CROSSFADE_DURATION = 2500;
+  const CROSSFADE_DURATION = settings.crossfadeDuration || 2500;
   const isTransitioningRef = useRef(false);
 
   const [seek, setSeek] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [viewingTrack, setViewingTrack] = useState(null);
+  const [trackComments, setTrackComments] = useState([]);
+  const [trackLikers, setTrackLikers] = useState([]);
+  const [activeDetailTab, setActiveDetailTab] = useState('info'); // 'info' or 'lyrics'
+  const [lyrics, setLyrics] = useState(null);
+  const [loadingLyrics, setLoadingLyrics] = useState(false);
+  const [vibeColors, setVibeColors] = useState(['#1a1a1a', '#000000']);
+
+  useEffect(() => {
+    if (settings.dynamicBg && currentTrack && (currentTrack.artwork_url || currentTrack.user?.avatar_url)) {
+      const img = new Image();
+      img.crossOrigin = 'Anonymous';
+      const rawUrl = currentTrack.artwork_url || currentTrack.user?.avatar_url || '';
+      // Sample from a medium size for better performance and CORS reliability
+      img.src = rawUrl.replace('-large', '-t300x300').replace('-small', '-t300x300');
+
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = 10;
+          canvas.height = 10;
+          ctx.drawImage(img, 0, 0, 10, 10);
+
+          const data = ctx.getImageData(0, 0, 10, 10).data;
+          const colors = [];
+          for (let i = 0; i < data.length; i += 4) {
+            const r = data[i];
+            const g = data[i + 1];
+            const b = data[i + 2];
+            const brightness = (r * 299 + g * 587 + b * 114) / 1000;
+            // Filter for saturated but not too dark/light colors
+            if (brightness > 30 && brightness < 200) {
+              colors.push(`rgb(${r}, ${g}, ${b})`);
+            }
+          }
+
+          if (colors.length >= 2) {
+            setVibeColors([colors[0], colors[Math.min(colors.length - 1, 15)]]);
+          } else if (colors.length === 1) {
+            setVibeColors([colors[0], '#000000']);
+          }
+        } catch (e) {
+          console.error('Vibe: Error sampling colors', e);
+        }
+      };
+      img.onerror = () => {
+        console.warn('Vibe: Failed to load image for colors');
+      };
+    }
+  }, [currentTrack, settings.dynamicBg]);
+
+  useEffect(() => {
+    if (viewingTrack && window.electronAPI) {
+      setLyrics(null);
+      setActiveDetailTab('info');
+      if (window.electronAPI.getComments) window.electronAPI.getComments(viewingTrack.id).then(setTrackComments);
+      if (window.electronAPI.getTrackLikers) window.electronAPI.getTrackLikers(viewingTrack.id).then(setTrackLikers);
+    } else {
+      setTrackComments([]);
+      setTrackLikers([]);
+      setLyrics(null);
+    }
+  }, [viewingTrack]);
+
+  // Tab Navigation with Mouse Side Buttons
+  useEffect(() => {
+    const handleMouseNav = (e) => {
+      // button 3 is Mouse 4 (Back by default), button 4 is Mouse 5 (Forward by default)
+      // User mapping: Mouse 4 -> Forward, Mouse 5 -> Backward
+      if (e.button === 3 || e.button === 4) {
+        const TABS = ['Home', 'Discover', 'Library', 'Playlists'];
+        const currentIndex = TABS.indexOf(activeTab);
+        if (currentIndex === -1) return;
+
+        const direction = e.button === 3 ? 1 : -1;
+        let nextIndex = currentIndex + direction;
+
+        if (nextIndex < 0) nextIndex = TABS.length - 1;
+        if (nextIndex >= TABS.length) nextIndex = 0;
+
+        setActiveTab(TABS[nextIndex]);
+        setViewingTrack(null);
+        setSelectedArtist(null);
+        setSelectedPlaylist(null);
+        setSettingsOpen(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handleMouseNav);
+    return () => window.removeEventListener('mousedown', handleMouseNav);
+  }, [activeTab]);
+
+  const fetchLyrics = async (forceTitle = null) => {
+    if (!viewingTrack || (lyrics && !forceTitle) || loadingLyrics) return;
+    setLoadingLyrics(true);
+    setLyrics(null);
+    try {
+      let cleanTitle = forceTitle || viewingTrack.title
+        .replace(/\([^)]*\)/g, '')
+        .replace(/\[[^\]]*\]/g, '')
+        .trim();
+
+      console.log(`[Lyrics] Attempting: ${viewingTrack.user.username} - ${cleanTitle}`);
+
+      let res = await window.electronAPI.getLyrics({
+        artist: viewingTrack.user.username,
+        title: cleanTitle
+      });
+
+      if (!res) {
+        res = await window.electronAPI.getLyrics({
+          artist: '',
+          title: cleanTitle
+        });
+      }
+
+      // Final fallback: Use original title without any cleaning
+      if (!res && !forceTitle) {
+        res = await window.electronAPI.getLyrics({
+          artist: viewingTrack.user.username,
+          title: viewingTrack.title
+        });
+      }
+
+      setLyrics(res || 'Lyrics not found.');
+    } catch (e) {
+      console.error(e);
+      setLyrics('Failed to load lyrics.');
+    } finally {
+      setLoadingLyrics(false);
+    }
+  };
+
+  const handleSelectFont = async () => {
+    if (window.electronAPI) {
+      const fontPath = await window.electronAPI.selectFont();
+      if (fontPath) {
+        // Convert to file URL if it's not already
+        const formattedPath = fontPath.startsWith('file://') ? fontPath : `file://${fontPath.replace(/\\/g, '/')}`;
+        setSettings({ ...settings, customFont: formattedPath });
+      }
+    }
+  };
+
+  const handleResetFont = () => {
+    setSettings({ ...settings, customFont: null });
+  };
+
+  // Dynamically Apply Custom Font
+  useEffect(() => {
+    if (settings.customFont) {
+      const fontName = 'CustomUserFont';
+      let styleTag = document.getElementById('custom-font-style');
+      if (!styleTag) {
+        styleTag = document.createElement('style');
+        styleTag.id = 'custom-font-style';
+        document.head.appendChild(styleTag);
+      }
+      styleTag.innerHTML = `
+        @font-face {
+          font-family: '${fontName}';
+          src: url('${settings.customFont}');
+        }
+        :root {
+          --app-font: '${fontName}', 'Outfit', 'Inter', -apple-system, sans-serif !important;
+        }
+        body, button, input, select, textarea {
+          font-family: var(--app-font) !important;
+        }
+      `;
+    } else {
+      const styleTag = document.getElementById('custom-font-style');
+      if (styleTag) styleTag.remove();
+      document.documentElement.style.removeProperty('--app-font');
+    }
+  }, [settings.customFont]);
   const [isLooping, setIsLooping] = useState(false);
   const [isShuffled, setIsShuffled] = useState(false);
 
@@ -363,29 +555,6 @@ function App() {
       sound.loop(isLooping);
     }
   }, [isLooping, sound]);
-
-  // Check SoundCloud connectivity on mount
-  useEffect(() => {
-    const checkConnection = async () => {
-      if (!window.electronAPI) {
-        setConnectionStatus('disconnected');
-        return;
-      }
-
-      try {
-        // Try to fetch a simple endpoint to test connectivity
-        await window.electronAPI.searchTracks('test', null);
-        setConnectionStatus('connected');
-      } catch (error) {
-        setConnectionStatus('disconnected');
-      }
-    };
-
-    checkConnection();
-    // Re-check every 30 seconds
-    const interval = setInterval(checkConnection, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
 
   useEffect(() => {
@@ -423,7 +592,7 @@ function App() {
       setPlaylists([]);
       setArtists([]);
       setSelectedPlaylist(null);
-      setSelectedArtist(null);
+      setSelectedArtist(null); setViewingTrack(null);
     }
 
     try {
@@ -485,6 +654,15 @@ function App() {
         });
       }
     }
+  };
+
+  const handleHeaderSeek = (e) => {
+    if (!duration || !sound) return;
+    const rect = e.target.getBoundingClientRect();
+    const percent = (e.clientX - rect.left) / rect.width;
+    const seekTime = percent * duration;
+    sound.seek(seekTime);
+    setSeek(seekTime);
   };
 
 
@@ -639,14 +817,14 @@ function App() {
           setIsPlaying(true);
           setDuration(newSound.duration()); // Keep this to update duration immediately
           if (useCrossfade) {
-            newSound.fade(0, volume, CROSSFADE_DURATION);
+            newSound.fade(0, volume, (settings.crossfadeDuration || 2500));
           }
 
           if (previousSound && useCrossfade) {
-            previousSound.fade(previousSound.volume(), 0, CROSSFADE_DURATION);
+            previousSound.fade(previousSound.volume(), 0, (settings.crossfadeDuration || 2500));
             setTimeout(() => {
               try { previousSound.unload(); } catch (e) { }
-            }, CROSSFADE_DURATION + 1000);
+            }, (settings.crossfadeDuration || 2500) + 1000);
           }
 
           isTransitioningRef.current = false;
@@ -828,186 +1006,7 @@ function App() {
     }
   }, [settings.eq]);
 
-  // Visualizer Animation
-  useEffect(() => {
-    if (!backgroundCanvasRef.current) return;
 
-    const canvas = backgroundCanvasRef.current;
-    const ctx = canvas.getContext('2d');
-
-    // Ensure analyser is created
-    if (!analyserRef.current && window.Howler && window.Howler.ctx) {
-      const audioCtx = window.Howler.ctx;
-      analyserRef.current = audioCtx.createAnalyser();
-      analyserRef.current.fftSize = 256;
-      console.log('Visualizer: Analyser created');
-      // Connect it to the audio chain
-      connectEQ();
-    }
-
-    if (!analyserRef.current) {
-      console.warn('Visualizer: Analyser not available yet');
-      return;
-    }
-
-    const analyser = analyserRef.current;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-
-    let particles = [];
-    const particleCount = 100;
-
-    // Initialize particles for Particles visualizer
-    for (let i = 0; i < particleCount; i++) {
-      particles.push({
-        x: Math.random() * window.innerWidth,
-        y: Math.random() * window.innerHeight,
-        vx: (Math.random() - 0.5) * 2,
-        vy: (Math.random() - 0.5) * 2,
-        radius: Math.random() * 3 + 1
-      });
-    }
-
-    const draw = () => {
-      if (!canvas || !ctx) return;
-
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-
-      analyser.getByteFrequencyData(dataArray);
-
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      const style = settings.visualizerStyle || 'Bars';
-
-      if (style === 'Bars') {
-        // Classic bars
-        const barWidth = (canvas.width / bufferLength) * 2.5;
-        let barHeight;
-        let x = 0;
-
-        for (let i = 0; i < bufferLength; i++) {
-          barHeight = (dataArray[i] / 255) * canvas.height * 0.8;
-
-          const hue = (i / bufferLength) * 360;
-          ctx.fillStyle = `hsla(${hue}, 80%, 60%, 0.8)`;
-          ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-
-          x += barWidth + 1;
-        }
-      } else if (style === 'Wave') {
-        // Oscilloscope wave
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = 'rgba(255, 85, 0, 0.8)';
-        ctx.beginPath();
-
-        const sliceWidth = canvas.width / bufferLength;
-        let x = 0;
-
-        for (let i = 0; i < bufferLength; i++) {
-          const v = dataArray[i] / 128.0;
-          const y = (v * canvas.height) / 2;
-
-          if (i === 0) {
-            ctx.moveTo(x, y);
-          } else {
-            ctx.lineTo(x, y);
-          }
-
-          x += sliceWidth;
-        }
-
-        ctx.lineTo(canvas.width, canvas.height / 2);
-        ctx.stroke();
-      } else if (style === 'Mirrored') {
-        // Mirrored bars
-        const barWidth = (canvas.width / bufferLength) * 2.5;
-        let x = 0;
-
-        for (let i = 0; i < bufferLength; i++) {
-          const barHeight = (dataArray[i] / 255) * (canvas.height / 2) * 0.8;
-
-          const hue = (i / bufferLength) * 360;
-          ctx.fillStyle = `hsla(${hue}, 80%, 60%, 0.8)`;
-
-          // Top half
-          ctx.fillRect(x, canvas.height / 2 - barHeight, barWidth, barHeight);
-          // Bottom half (mirrored)
-          ctx.fillRect(x, canvas.height / 2, barWidth, barHeight);
-
-          x += barWidth + 1;
-        }
-      } else if (style === 'Circles') {
-        // Pulsating circles
-        const centerX = canvas.width / 2;
-        const centerY = canvas.height / 2;
-        const maxRadius = Math.min(canvas.width, canvas.height) / 3;
-
-        for (let i = 0; i < bufferLength; i += 4) {
-          const radius = (dataArray[i] / 255) * maxRadius;
-          const hue = (i / bufferLength) * 360;
-
-          ctx.beginPath();
-          ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-          ctx.strokeStyle = `hsla(${hue}, 80%, 60%, 0.6)`;
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-      } else if (style === 'Particles') {
-        // Reactive particles
-        const avgFreq = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
-        const intensity = avgFreq / 255;
-
-        particles.forEach((particle, i) => {
-          // Update position
-          particle.x += particle.vx * (1 + intensity * 2);
-          particle.y += particle.vy * (1 + intensity * 2);
-
-          // Bounce off edges
-          if (particle.x < 0 || particle.x > canvas.width) particle.vx *= -1;
-          if (particle.y < 0 || particle.y > canvas.height) particle.vy *= -1;
-
-          // Keep in bounds
-          particle.x = Math.max(0, Math.min(canvas.width, particle.x));
-          particle.y = Math.max(0, Math.min(canvas.height, particle.y));
-
-          // Draw particle
-          const hue = (i / particleCount) * 360;
-          ctx.beginPath();
-          ctx.arc(particle.x, particle.y, particle.radius * (1 + intensity), 0, 2 * Math.PI);
-          ctx.fillStyle = `hsla(${hue}, 80%, 60%, ${0.6 + intensity * 0.4})`;
-          ctx.fill();
-
-          // Draw connections
-          particles.forEach((other, j) => {
-            if (j <= i) return;
-            const dx = particle.x - other.x;
-            const dy = particle.y - other.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < 100 * (1 + intensity)) {
-              ctx.beginPath();
-              ctx.moveTo(particle.x, particle.y);
-              ctx.lineTo(other.x, other.y);
-              ctx.strokeStyle = `hsla(${hue}, 80%, 60%, ${(1 - distance / 100) * 0.3 * intensity})`;
-              ctx.lineWidth = 1;
-              ctx.stroke();
-            }
-          });
-        });
-      }
-
-      animationFrameRef.current = requestAnimationFrame(draw);
-    };
-
-    draw();
-
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-    };
-  }, [settings.visualizerStyle, isPlaying]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -1099,8 +1098,8 @@ function App() {
   };
 
 
+  // MASTER Visualizer Effect
   useEffect(() => {
-    // Handle Window Resize for Background Canvas
     const handleResize = () => {
       if (backgroundCanvasRef.current) {
         backgroundCanvasRef.current.width = window.innerWidth;
@@ -1108,179 +1107,173 @@ function App() {
       }
     };
     window.addEventListener('resize', handleResize);
-    handleResize(); // Init
+    handleResize();
 
     if (!isPlaying) {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+      // Clear canvases on pause if desired, but maybe keep last frame?
       return () => window.removeEventListener('resize', handleResize);
     }
 
-    // Resolve theme color
+    // Resolve current theme color
     let r = 255, g = 85, b = 0;
-    if (canvasRef.current || backgroundCanvasRef.current) {
-      // Try to get color from a stable element
-      const tempEl = document.createElement('div');
-      tempEl.style.color = 'var(--primary)';
-      document.body.appendChild(tempEl);
-      // Wait for next tick or just force clean style read?
-      // Actually var(--primary) is set on .App, so we need to be inside it?
-      // Let's just use the settings value if possible, or fallback.
-      // But settings color might be a CSS var name if not custom.
-      // Using the temp element method is fine but let's be safer.
-      const computed = getComputedStyle(tempEl).color;
-      document.body.removeChild(tempEl);
-
-      const match = computed.match(/\d+/g);
-      if (match && match.length >= 3) {
-        [r, g, b] = match.map(Number);
-      } else if (settings.customThemeColor && settings.customThemeColor.startsWith('#')) {
-        const hex = settings.customThemeColor.substring(1);
-        if (hex.length === 6) {
-          r = parseInt(hex.substring(0, 2), 16);
-          g = parseInt(hex.substring(2, 4), 16);
-          b = parseInt(hex.substring(4, 6), 16);
-        }
+    const tempEl = document.createElement('div');
+    tempEl.style.color = 'var(--primary)';
+    document.body.appendChild(tempEl);
+    const computed = getComputedStyle(tempEl).color;
+    document.body.removeChild(tempEl);
+    const match = computed.match(/\d+/g);
+    if (match && match.length >= 3) {
+      [r, g, b] = match.map(Number);
+    } else if (settings.customThemeColor && settings.customThemeColor.startsWith('#')) {
+      const hex = settings.customThemeColor.substring(1);
+      if (hex.length === 6) {
+        r = parseInt(hex.substring(0, 2), 16);
+        g = parseInt(hex.substring(2, 4), 16);
+        b = parseInt(hex.substring(4, 6), 16);
       }
     }
     const rgb = `${r}, ${g}, ${b}`;
 
-    // Particle System State
+    // Particle System state for background
     const particles = [];
     const maxParticles = 100;
 
     const draw = () => {
-      if (!analyserRef.current) return;
+      if (!analyserRef.current) {
+        animationFrameRef.current = requestAnimationFrame(draw);
+        return;
+      }
+
       const analyser = analyserRef.current;
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
       analyser.getByteFrequencyData(dataArray);
 
-      // --- Small Player Visualizer (CanvasRef) ---
+      const style = settings.visualizerStyle || 'Bars';
+
+      // 1. FOOTER CANVAS (Small Player)
       if (canvasRef.current) {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
-        const width = canvas.width;
-        const height = canvas.height;
-        const style = settings.visualizerStyle || 'Bars';
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        ctx.clearRect(0, 0, width, height);
+        // Footer always uses simplified Bars/Waveform/Mirrored
+        const footerStyle = ['Particles', 'Frequency'].includes(style) ? 'Bars' : style;
 
-        // Don't draw complex background styles on the small player canvas
-        const playerStyle = ['Particles', 'Frequency'].includes(style) ? 'Bars' : style;
-
-        if (playerStyle === 'Bars') {
-          const barWidth = (width / bufferLength) * 2.5;
-          let barHeight;
+        if (footerStyle === 'Bars') {
+          const barWidth = (canvas.width / bufferLength) * 2.5;
           let x = 0;
           for (let i = 0; i < bufferLength; i++) {
-            barHeight = (dataArray[i] / 255) * height;
+            const barHeight = (dataArray[i] / 255) * canvas.height;
             ctx.fillStyle = `rgba(${rgb}, 0.8)`;
-            ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+            ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
             x += barWidth + 1;
           }
-        } else if (playerStyle === 'Waveform') {
-          const timeData = new Uint8Array(bufferLength);
-          analyser.getByteTimeDomainData(timeData);
+        } else if (footerStyle === 'Waveform' || footerStyle === 'Wave') {
           ctx.lineWidth = 2;
           ctx.strokeStyle = `rgb(${rgb})`;
           ctx.beginPath();
-          const sliceWidth = width * 1.0 / bufferLength;
+          const sliceWidth = canvas.width / bufferLength;
           let x = 0;
           for (let i = 0; i < bufferLength; i++) {
-            const v = timeData[i] / 128.0;
-            const y = v * height / 2;
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
+            const v = dataArray[i] / 128.0;
+            const y = v * canvas.height / 2;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
             x += sliceWidth;
           }
           ctx.stroke();
-        } else if (playerStyle === 'Mirrored') {
-          const barWidth = (width / bufferLength) * 1.2;
-          let barHeight;
-          const centerX = width / 2;
+        } else if (footerStyle === 'Mirrored') {
+          const barWidth = (canvas.width / bufferLength) * 1.2;
+          const centerX = canvas.width / 2;
           for (let i = 0; i < bufferLength; i++) {
-            barHeight = (dataArray[i] / 255) * height * 0.8;
+            const barHeight = (dataArray[i] / 255) * canvas.height * 0.8;
             ctx.fillStyle = `rgba(${rgb}, 0.6)`;
-            ctx.fillRect(centerX + (i * (barWidth + 1)), height / 2 - barHeight / 2, barWidth, barHeight);
-            ctx.fillRect(centerX - (i * (barWidth + 1)), height / 2 - barHeight / 2, barWidth, barHeight);
+            ctx.fillRect(centerX + (i * (barWidth + 1)), canvas.height / 2 - barHeight / 2, barWidth, barHeight);
+            ctx.fillRect(centerX - (i * (barWidth + 1)), canvas.height / 2 - barHeight / 2, barWidth, barHeight);
           }
-        } else if (playerStyle === 'Circles') {
-          const centerX = width / 2;
-          const centerY = height / 2;
-          const radius = (dataArray[10] / 255) * (height / 2); // Bass kick
-          ctx.beginPath();
-          ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI);
-          ctx.strokeStyle = `rgba(${rgb}, 0.8)`;
-          ctx.stroke();
+        } else if (footerStyle === 'Circles') {
+          const radius = (dataArray[10] / 255) * (canvas.height / 2);
+          ctx.beginPath(); ctx.arc(canvas.width / 2, canvas.height / 2, radius, 0, 2 * Math.PI);
+          ctx.strokeStyle = `rgba(${rgb}, 0.8)`; ctx.stroke();
         }
       }
 
-      // --- Fullscreen Background Visualizer (BackgroundCanvasRef) ---
-      if (backgroundCanvasRef.current && ['Particles', 'Frequency'].includes(settings.visualizerStyle)) {
-        const bgCanvas = backgroundCanvasRef.current;
-        const bgCtx = bgCanvas.getContext('2d');
-        const w = bgCanvas.width;
-        const h = bgCanvas.height;
+      // 2. HEADER CANVAS (Track Detail View)
+      if (headerCanvasRef.current) {
+        const canvas = headerCanvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (Math.abs(canvas.width - canvas.clientWidth) > 5) canvas.width = canvas.clientWidth;
+        if (Math.abs(canvas.height - canvas.clientHeight) > 5) canvas.height = canvas.clientHeight;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Fade out effect for trails
-        bgCtx.fillStyle = settings.visualizerStyle === 'Particles' ? '#00000040' : '#00000020';
-        // Or clear if transparent background is preferred, but trails look cool. 
-        // For 'Frequency' we might want cleaner redraw.
-        if (settings.visualizerStyle === 'Frequency') bgCtx.clearRect(0, 0, w, h);
-        else bgCtx.fillRect(0, 0, w, h);
-
-        if (settings.visualizerStyle === 'Frequency') {
-          // Big spectrum at the bottom
-          const barWidth = (w / bufferLength) * 2.5;
-          let barHeight;
+        // Header uses standard styles
+        if (style === 'Bars' || style === 'Particles' || style === 'Frequency') {
+          const barWidth = (canvas.width / bufferLength) * 2.5;
           let x = 0;
           for (let i = 0; i < bufferLength; i++) {
-            barHeight = (dataArray[i] / 255) * h * 0.6; // Scale up
-            const gradient = bgCtx.createLinearGradient(0, h, 0, h - barHeight);
-            gradient.addColorStop(0, `rgba(${rgb}, 0.8)`);
-            gradient.addColorStop(1, `rgba(${rgb}, 0.1)`);
-            bgCtx.fillStyle = gradient;
-            bgCtx.fillRect(x, h - barHeight, barWidth, barHeight);
-            x += barWidth + 4; // More spacing
+            const barHeight = (dataArray[i] / 255) * canvas.height * 0.8;
+            ctx.fillStyle = `hsla(${(i / bufferLength) * 360}, 80%, 60%, 0.5)`;
+            ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+            x += barWidth + 1;
           }
-        } else if (settings.visualizerStyle === 'Particles') {
-          // Spawn particles based on bass/volume
-          const average = dataArray.reduce((src, a) => src + a, 0) / bufferLength;
-          if (average > 100 && particles.length < maxParticles) {
-            particles.push({
-              x: Math.random() * w,
-              y: h + 10,
-              vx: (Math.random() - 0.5) * 4,
-              vy: -(Math.random() * 5 + 2),
-              life: 1.0,
-              color: `rgba(${rgb}, ${Math.random()})`
-            });
-          }
-
-          // Update and draw particles
-          for (let i = particles.length - 1; i >= 0; i--) {
-            const p = particles[i];
-            p.x += p.vx;
-            p.y += p.vy;
-            p.life -= 0.01;
-
-            // React to music? Maybe jitter
-            p.x += (Math.random() - 0.5) * (average / 50);
-
-            bgCtx.beginPath();
-            bgCtx.arc(p.x, p.y, 3 * (average / 100), 0, Math.PI * 2);
-            bgCtx.fillStyle = p.color;
-            bgCtx.fill();
-
-            if (p.life <= 0 || p.y < -10) {
-              particles.splice(i, 1);
-            }
+        } else if (style === 'Waveform' || style === 'Wave') {
+          ctx.lineWidth = 3; ctx.strokeStyle = `rgba(${rgb}, 0.8)`; ctx.beginPath();
+          const sw = canvas.width / bufferLength; let x = 0;
+          for (let i = 0; i < bufferLength; i++) {
+            const v = dataArray[i] / 128.0; const y = (v * canvas.height) / 2;
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            x += sw;
+          } ctx.stroke();
+        } else if (style === 'Mirrored') {
+          const bw = (canvas.width / bufferLength) * 2.5; let x = 0;
+          for (let i = 0; i < bufferLength; i++) {
+            const bh = (dataArray[i] / 255) * (canvas.height / 2) * 0.8;
+            ctx.fillStyle = `hsla(${(i / bufferLength) * 360}, 80%, 60%, 0.5)`;
+            ctx.fillRect(x, canvas.height / 2 - bh, bw, bh);
+            ctx.fillRect(x, canvas.height / 2, bw, bh);
+            x += bw + 1;
           }
         }
-      } else if (backgroundCanvasRef.current) {
-        // Clear if style switched away
-        const bgCtx = backgroundCanvasRef.current.getContext('2d');
-        bgCtx.clearRect(0, 0, backgroundCanvasRef.current.width, backgroundCanvasRef.current.height);
+      }
+
+      // 3. BACKGROUND CANVAS
+      if (backgroundCanvasRef.current) {
+        const canvas = backgroundCanvasRef.current;
+        const ctx = canvas.getContext('2d');
+
+        if (style === 'Particles') {
+          ctx.fillStyle = '#00000040'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+          const average = dataArray.reduce((s, a) => s + a, 0) / bufferLength;
+          if (average > 100 && particles.length < maxParticles) {
+            particles.push({
+              x: Math.random() * canvas.width, y: canvas.height + 10,
+              vx: (Math.random() - 0.5) * 4, vy: -(Math.random() * 5 + 2),
+              life: 1.0, color: `rgba(${rgb}, ${Math.random()})`
+            });
+          }
+          for (let i = particles.length - 1; i >= 0; i--) {
+            const p = particles[i]; p.x += p.vx; p.y += p.vy; p.life -= 0.01;
+            p.x += (Math.random() - 0.5) * (average / 50);
+            ctx.beginPath(); ctx.arc(p.x, p.y, 3 * (average / 100), 0, Math.PI * 2);
+            ctx.fillStyle = p.color; ctx.fill();
+            if (p.life <= 0 || p.y < -10) particles.splice(i, 1);
+          }
+        } else if (style === 'Frequency') {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          const bw = (canvas.width / bufferLength) * 2.5;
+          let x = 0;
+          for (let i = 0; i < bufferLength; i++) {
+            const bh = (dataArray[i] / 255) * canvas.height * 0.6;
+            const grad = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - bh);
+            grad.addColorStop(0, `rgba(${rgb}, 0.8)`); grad.addColorStop(1, `rgba(${rgb}, 0.1)`);
+            ctx.fillStyle = grad; ctx.fillRect(x, canvas.height - bh, bw, bh);
+            x += bw + 4;
+          }
+        } else {
+          // Clear if not in background mode
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
       }
 
       animationFrameRef.current = requestAnimationFrame(draw);
@@ -1291,7 +1284,7 @@ function App() {
       window.removeEventListener('resize', handleResize);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [isPlaying, settings.visualizerStyle, settings.theme, settings.customThemeColor]);
+  }, [isPlaying, settings.visualizerStyle, settings.theme, settings.customThemeColor, viewingTrack]);
 
   const handleImportLikes = async () => {
     if (!scProfileUrl) return;
@@ -1369,6 +1362,24 @@ function App() {
         img.onerror = () => resolve('#ff5500');
       }
     });
+  };
+
+  const handleSelectPlaceholder = async () => {
+    if (window.electronAPI && window.electronAPI.selectImage) {
+      const filePath = await window.electronAPI.selectImage();
+      if (filePath) {
+        const url = `file://${filePath}`;
+        const newSettings = {
+          ...settings,
+          customTheme: { ...settings.customTheme, placeholder: url }
+        };
+        setSettings(newSettings);
+        // Save settings is handled by useEffect usually, or explicit save?
+        // App.js usually relies on explicit save or state change triggering save?
+        // Let's check handleCustomBackground. It calls window.electronAPI.saveSettings(newSettings);
+        window.electronAPI.saveSettings(newSettings);
+      }
+    }
   };
 
   const handleCustomBackground = async () => {
@@ -1449,7 +1460,8 @@ function App() {
   };
 
 
-  const placeholderImg = require('./assets/holder.png');
+  const defaultPlaceholder = require('./assets/holder.png');
+  const placeholderImg = (settings.theme === 'Custom' && settings.customTheme?.placeholder) || defaultPlaceholder;
 
 
   const getContextQueue = () => {
@@ -1595,7 +1607,9 @@ function App() {
     try {
       const details = await window.electronAPI.getArtistDetails(artist.id);
       setSelectedArtist(details);
+      setSelectedArtist(details);
       setArtistTab('tracks');
+      setSelectedPlaylist(null);
       setActiveTab('Home');
     } catch (e) {
       console.error(e);
@@ -1742,7 +1756,259 @@ function App() {
     );
   };
 
+  const renderTrackDetailView = () => {
+    if (!viewingTrack) return null;
+    const isPlayingThis = currentTrack && String(currentTrack.id) === String(viewingTrack.id);
+
+    return (
+      <div className="content" style={{ padding: 0 }}>
+        {/* HEADER */}
+        <div style={{
+          minHeight: '340px',
+          background: `linear-gradient(135deg, ${viewingTrack.user?.avatar_url ? '#1a1a1a' : '#333'}, #000)`,
+          padding: '30px',
+          position: 'relative',
+          display: 'flex',
+          gap: '30px',
+          color: 'white',
+          alignItems: 'flex-start'
+        }}>
+          {/* Header Background Image Blur */}
+          {viewingTrack.artwork_url && (
+            <div style={{
+              position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+              backgroundImage: `url(${viewingTrack.artwork_url.replace('large', 't500x500')})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              filter: 'blur(60px) brightness(0.3)',
+              zIndex: 0
+            }} />
+          )}
+
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', zIndex: 1, height: '100%' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: 'auto' }}>
+              <button
+                className="play-btn-large"
+                onClick={() => isPlayingThis ? togglePlay() : playTrackSecure(viewingTrack)}
+                style={{
+                  width: '64px', height: '64px', borderRadius: '50%', background: 'var(--primary)', border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', boxShadow: '0 8px 16px rgba(0,0,0,0.3)'
+                }}
+              >
+                {isPlayingThis && isPlaying ? (
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
+                ) : (
+                  <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
+                )}
+              </button>
+              <div>
+                <h1 style={{ fontSize: '28px', background: 'rgba(0,0,0,0.6)', padding: '4px 8px', margin: '0 0 8px 0', fontWeight: 900 }}>{viewingTrack.title}</h1>
+                <h2
+                  onClick={() => { setViewingTrack(null); openArtist(viewingTrack.user); }}
+                  title="View Artist Profile"
+                  style={{ fontSize: '18px', color: '#eee', background: 'rgba(0,0,0,0.4)', padding: '4px 8px', margin: 0, width: 'fit-content', cursor: 'pointer' }}
+                >
+                  {viewingTrack.user?.username}
+                </h2>
+              </div>
+            </div>
+
+            {/* HEADER WAVEFORM (REAL) */}
+            <div style={{ height: '100px', marginTop: '40px', position: 'relative', overflow: 'hidden' }}>
+              <canvas
+                ref={headerCanvasRef}
+                onClick={handleHeaderSeek}
+                style={{ width: '100%', height: '100%', cursor: 'pointer' }}
+              />
+            </div>
+          </div>
+
+          {/* ARTWORK */}
+          <div style={{ width: '300px', height: '300px', flexShrink: 0, zIndex: 1, boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
+            <img
+              src={viewingTrack.artwork_url ? viewingTrack.artwork_url.replace('large', 't500x500') : placeholderImg}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              alt="Artwork"
+            />
+          </div>
+        </div>
+
+        {/* BODY */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '40px', padding: '40px' }}>
+          {/* LEFT: INFO & COMMENTS & LYRICS */}
+          <div>
+            {/* TABS */}
+            <div style={{ display: 'flex', gap: '24px', marginBottom: '30px', borderBottom: '1px solid var(--border-dim)' }}>
+              <button
+                onClick={() => setActiveDetailTab('info')}
+                style={{
+                  padding: '0 0 12px 0',
+                  background: 'none', border: 'none',
+                  borderBottom: activeDetailTab === 'info' ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: activeDetailTab === 'info' ? 'var(--text-main)' : 'var(--text-secondary)',
+                  fontWeight: 700, cursor: 'pointer', fontSize: '14px'
+                }}
+              >
+                Info & Comments
+              </button>
+              <button
+                onClick={() => { setActiveDetailTab('lyrics'); fetchLyrics(); }}
+                style={{
+                  padding: '0 0 12px 0',
+                  background: 'none', border: 'none',
+                  borderBottom: activeDetailTab === 'lyrics' ? '2px solid var(--primary)' : '2px solid transparent',
+                  color: activeDetailTab === 'lyrics' ? 'var(--text-main)' : 'var(--text-secondary)',
+                  fontWeight: 700, cursor: 'pointer', fontSize: '14px'
+                }}
+              >
+                Lyrics
+              </button>
+            </div>
+
+            {activeDetailTab === 'info' ? (
+              <>
+                {/* Actions */}
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '30px', borderBottom: '1px solid var(--border-dim)', paddingBottom: '20px' }}>
+                  <button
+                    className={`action-btn ${isLiked(viewingTrack) ? 'active' : ''}`}
+                    onClick={(e) => handleToggleLike(e, viewingTrack)}
+                    style={{
+                      background: isLiked(viewingTrack) ? 'var(--primary)' : 'var(--bg-elevated)',
+                      color: isLiked(viewingTrack) ? 'white' : 'var(--text-main)',
+                      border: '1px solid var(--border-dim)',
+                      padding: '8px 16px', borderRadius: '4px', cursor: 'pointer', fontWeight: 600, fontSize: '13px'
+                    }}
+                  >
+                    {isLiked(viewingTrack) ? '♥ Liked' : '♡ Like'}
+                  </button>
+                  <button style={{ background: 'var(--bg-elevated)', color: 'var(--text-main)', border: '1px solid var(--border-dim)', padding: '8px 16px', borderRadius: '4px', cursor: 'not-allowed', opacity: 0.7, fontSize: '13px' }}>Repost</button>
+                  <button style={{ background: 'var(--bg-elevated)', color: 'var(--text-main)', border: '1px solid var(--border-dim)', padding: '8px 16px', borderRadius: '4px', cursor: 'not-allowed', opacity: 0.7, fontSize: '13px' }}>Share</button>
+                </div>
+
+                {/* Description */}
+                {viewingTrack.description && (
+                  <div style={{ marginBottom: '40px', color: 'var(--text-secondary)', lineHeight: '1.6', whiteSpace: 'pre-wrap', fontSize: '14px' }}>
+                    {viewingTrack.description}
+                  </div>
+                )}
+
+                {/* Comments */}
+                <h3 style={{ borderBottom: '1px solid var(--border-dim)', paddingBottom: '10px', marginBottom: '20px' }}>
+                  {trackComments.length} comments
+                </h3>
+                <div className="comments-list">
+                  {trackComments.length > 0 ? trackComments.map(c => (
+                    <div key={c.id} style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
+                      <img
+                        src={c.user?.avatar_url}
+                        onClick={() => { setViewingTrack(null); openArtist(c.user); }}
+                        style={{ width: '40px', height: '40px', borderRadius: '50%', cursor: 'pointer' }}
+                        alt="User"
+                      />
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '13px', marginBottom: '4px' }}>
+                          <span
+                            onClick={() => { setViewingTrack(null); openArtist(c.user); }}
+                            style={{ color: 'var(--text-main)', fontWeight: 700, marginRight: '8px', cursor: 'pointer' }}
+                          >
+                            {c.user?.username}
+                          </span>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '11px' }}>{c.created_at ? new Date(c.created_at).toLocaleDateString() : 'Just now'} at {formatTime((c.timestamp || 0) / 1000)}</span>
+                        </div>
+                        <p style={{ margin: 0, color: 'var(--text-main)', fontSize: '14px' }}>{c.body}</p>
+                      </div>
+                    </div>
+                  )) : (
+                    <p style={{ color: 'var(--text-secondary)' }}>No comments yet.</p>
+                  )}
+                </div>
+              </>
+            ) : (
+              /* LYRICS TAB */
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.8', fontSize: '16px', color: 'var(--text-main)' }}>
+                {loadingLyrics ? (
+                  <div style={{ color: 'var(--text-secondary)' }}>Searching Genius...</div>
+                ) : (
+                  <>
+                    {lyrics ? (
+                      <>
+                        {lyrics}
+                        <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-dim)', paddingTop: '20px' }}>
+                          <button
+                            onClick={() => fetchLyrics(viewingTrack.title)}
+                            style={{ background: 'none', border: '1px solid var(--border-dim)', color: 'var(--text-secondary)', padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderRadius: '4px' }}
+                          >
+                            Not correct? Search with full title
+                          </button>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ color: 'var(--text-secondary)' }}>
+                        Lyrics not found.
+                        <br />
+                        <button
+                          onClick={() => fetchLyrics(viewingTrack.title)}
+                          style={{ marginTop: '10px', background: 'var(--primary)', border: 'none', color: 'white', padding: '6px 12px', cursor: 'pointer', fontSize: '12px', borderRadius: '4px' }}
+                        >
+                          Search again with full title
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                <div style={{ marginTop: '40px', fontSize: '12px', color: 'var(--text-secondary)', opacity: 0.5 }}>
+                  Lyrics provided by Genius.com
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* RIGHT: SIDEBAR */}
+          <div>
+            <div
+              onClick={() => { setViewingTrack(null); openArtist(viewingTrack.user); }}
+              style={{ background: 'var(--bg-elevated)', padding: '20px', borderRadius: '8px', marginBottom: '30px', cursor: 'pointer', transition: 'background 0.2s' }}
+              onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+              onMouseOut={(e) => e.currentTarget.style.background = 'var(--bg-elevated)'}
+            >
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Artist</h3>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '60px', height: '60px', borderRadius: '50%', overflow: 'hidden' }}>
+                  <img src={viewingTrack.user?.avatar_url} style={{ width: '100%', height: '100%' }} alt="Artist" />
+                </div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '16px', marginBottom: '4px' }}>{viewingTrack.user?.username}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{viewingTrack.user?.followers_count?.toLocaleString()} followers</div>
+                </div>
+              </div>
+            </div>
+
+            {trackLikers.length > 0 && (
+              <div style={{ background: 'var(--bg-elevated)', padding: '20px', borderRadius: '8px' }}>
+                <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Fans</h3>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {trackLikers.map(u => (
+                    <div
+                      key={u.id}
+                      title={u.username}
+                      onClick={() => { setViewingTrack(null); openArtist(u); }}
+                      style={{ width: '48px', height: '48px', borderRadius: '50%', overflow: 'hidden', border: '2px solid var(--bg-panel)', cursor: 'pointer' }}
+                    >
+                      <img src={u.avatar_url} style={{ width: '100%', height: '100%' }} alt={u.username} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderContent = () => {
+    if (viewingTrack) return renderTrackDetailView();
     if (selectedPlaylist) return renderPlaylistView();
     if (selectedArtist) return renderArtistView();
 
@@ -1851,16 +2117,52 @@ function App() {
           </div>
         );
       case 'Library':
+        const displayTracks = filteredLikedTracks.slice(0, libraryDisplayLimit);
+
         return (
-          <section className="content">
-            <h2 style={{ padding: '20px 0 0 0', margin: 0 }}>{t('likedTracksTitle')}</h2>
-            {likedTracks.length > 0 ? (
+          <section
+            className="content"
+            onScroll={(e) => {
+              // Infinite scroll: load more when near bottom
+              if (e.target.scrollHeight - e.target.scrollTop < e.target.clientHeight + 400) {
+                if (libraryDisplayLimit < filteredLikedTracks.length) {
+                  setLibraryDisplayLimit(prev => Math.min(prev + 50, filteredLikedTracks.length));
+                }
+              }
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 0 16px 0' }}>
+              <h2 style={{ margin: 0 }}>{t('likedTracksTitle')} <span style={{ fontSize: '16px', color: 'var(--text-secondary)', fontWeight: 500 }}>({likedTracks.length})</span></h2>
+              <input
+                type="text"
+                placeholder={t('searchPlaceholder')}
+                value={likedTracksQuery}
+                onChange={(e) => setLikedTracksQuery(e.target.value)}
+                className="search-input-minimal"
+                style={{
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border-dim)',
+                  borderRadius: '20px',
+                  padding: '8px 16px',
+                  color: 'var(--text-main)',
+                  width: '240px',
+                  fontSize: '13px',
+                  outline: 'none'
+                }}
+              />
+            </div>
+            {displayTracks.length > 0 ? (
               <div className="track-grid">
-                {likedTracks.map(track => renderTrackCard(track))}
+                {displayTracks.map(track => renderTrackCard(track))}
               </div>
             ) : (
               <div style={{ padding: '40px', textAlign: 'center', opacity: 0.5 }}>
-                <p>{t('noLikedTracks')}</p>
+                <p>{likedTracks.length > 0 ? 'No matches found' : t('noLikedTracks')}</p>
+              </div>
+            )}
+            {libraryDisplayLimit < filteredLikedTracks.length && (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '12px' }}>
+                Loading more...
               </div>
             )}
           </section>
@@ -1965,6 +2267,36 @@ function App() {
                             </div>
                           </div>
                         ))}
+                      </div>
+
+                      <div style={{ marginBottom: '20px' }}>
+                        <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>{t('placeholderUrl')}</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <input
+                            type="text"
+                            value={settings.customTheme?.placeholder || ''}
+                            onChange={(e) => {
+                              const newCustomTheme = { ...settings.customTheme, placeholder: e.target.value };
+                              setSettings({ ...settings, customTheme: newCustomTheme });
+                            }}
+                            placeholder="https://example.com/image.png"
+                            style={{ flex: 1, background: 'var(--bg-dark)', border: '1px solid var(--border-dim)', color: 'var(--text-main)', fontSize: '12px', padding: '6px 8px', borderRadius: '4px' }}
+                          />
+                          <button
+                            onClick={handleSelectPlaceholder}
+                            style={{
+                              padding: '0 12px',
+                              background: 'var(--bg-hover)',
+                              border: '1px solid var(--border-dim)',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              color: 'var(--text-main)'
+                            }}
+                            title={t('upload')}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+                          </button>
+                        </div>
                       </div>
 
                       {/* Export / Import */}
@@ -2110,6 +2442,77 @@ function App() {
                   </select>
                 </div>
 
+                <div className="setting-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-dim)' }}>
+                  <div className="setting-info">
+                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" strokeWidth="2.5"><path d="M4 7V4h16v3M9 20h6M12 4v16" /></svg>
+                      {t('customFont')}
+                    </h3>
+                    <p>{t('customFontDesc')}</p>
+                  </div>
+
+                  {settings.customFont && (
+                    <div style={{ fontSize: '11px', color: 'var(--primary)', background: 'rgba(255,85,0,0.1)', padding: '6px 10px', borderRadius: '6px', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      Active: {decodeURIComponent(settings.customFont.split('/').pop())}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+                    <button
+                      onClick={handleSelectFont}
+                      style={{
+                        flex: 1,
+                        background: 'var(--primary)',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '10px',
+                        color: 'white',
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        boxShadow: '0 4px 12px rgba(255,85,0,0.2)'
+                      }}
+                    >
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" /></svg>
+                      {t('uploadFont')}
+                    </button>
+                    {settings.customFont && (
+                      <button
+                        onClick={handleResetFont}
+                        style={{
+                          background: 'var(--bg-hover)',
+                          border: '1px solid var(--border-dim)',
+                          borderRadius: '8px',
+                          padding: '0 15px',
+                          color: 'var(--text-secondary)',
+                          fontSize: '13px',
+                          fontWeight: 600,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {t('resetFont')}
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="setting-item">
+                  <div className="setting-info">
+                    <h3>{t('dynamicBg')}</h3>
+                    <p>{t('dynamicBgDesc')}</p>
+                  </div>
+                  <div
+                    className={`toggle-switch ${settings.dynamicBg ? 'active' : ''}`}
+                    onClick={() => setSettings({ ...settings, dynamicBg: !settings.dynamicBg })}
+                  >
+                    <div className="toggle-thumb" />
+                  </div>
+                </div>
+
                 <div className="setting-item">
                   <div className="setting-info">
                     <h3>{t('language')}</h3>
@@ -2230,86 +2633,6 @@ function App() {
                   </div>
                 </div>
 
-                <div className="setting-section-header" style={{ marginBottom: '10px', marginTop: '24px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  {t('proxy')}
-                </div>
-
-                <div className="setting-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-                    <div className="setting-info">
-                      <h3 style={{ margin: 0 }}>{t('proxyEnable')}</h3>
-                      <p style={{ margin: '4px 0 0 0' }}>{t('proxyDesc')}</p>
-                    </div>
-                    <div
-                      className={`toggle-switch ${settings.proxyEnabled ? 'active' : ''}`}
-                      onClick={() => setSettings({ ...settings, proxyEnabled: !settings.proxyEnabled })}
-                    >
-                      <div className="toggle-thumb"></div>
-                    </div>
-                  </div>
-
-                  {settings.proxyEnabled && (
-                    <div style={{ width: '100%', animation: 'fadeIn 0.2s ease' }}>
-                      <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                        <button
-                          onClick={() => setSettings({ ...settings, proxyType: 'Builtin' })}
-                          style={{
-                            flex: 1,
-                            padding: '8px',
-                            borderRadius: '6px',
-                            border: '1px solid var(--border-dim)',
-                            background: settings.proxyType === 'Builtin' ? 'var(--primary)' : 'var(--bg-elevated)',
-                            color: 'white',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {t('proxyBuiltin')}
-                        </button>
-                        <button
-                          onClick={() => setSettings({ ...settings, proxyType: 'Custom' })}
-                          style={{
-                            flex: 1,
-                            padding: '8px',
-                            borderRadius: '6px',
-                            border: '1px solid var(--border-dim)',
-                            background: settings.proxyType === 'Custom' ? 'var(--primary)' : 'var(--bg-elevated)',
-                            color: 'white',
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                          }}
-                        >
-                          {t('proxyCustom')}
-                        </button>
-                      </div>
-
-                      {settings.proxyType === 'Custom' && (
-                        <input
-                          type="text"
-                          placeholder={t('proxyUrlPlaceholder')}
-                          value={settings.proxyUrl || ''}
-                          onChange={(e) => setSettings({ ...settings, proxyUrl: e.target.value })}
-                          style={{
-                            width: '100%',
-                            background: 'var(--bg-panel)',
-                            border: '1px solid var(--border-dim)',
-                            borderRadius: '8px',
-                            padding: '10px 12px',
-                            color: 'white',
-                            fontSize: '13px'
-                          }}
-                        />
-                      )}
-
-                      <p style={{ margin: '8px 0 0 0', fontSize: '11px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                        {t('proxyRestart')}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
 
                 <div className="setting-section-header" style={{ marginBottom: '10px', marginTop: '24px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
                   {t('discordRpc')}
@@ -2368,17 +2691,39 @@ function App() {
                   </select>
                 </div>
 
-                <div className="setting-item">
-                  <div className="setting-info">
-                    <h3>{t('crossfade')}</h3>
-                    <p>{t('crossfadeDesc')}</p>
+                <div className="setting-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div className="setting-info">
+                      <h3>{t('crossfade')}</h3>
+                      <p>{t('crossfadeDesc')}</p>
+                    </div>
+                    <div
+                      className={`toggle-switch ${settings.crossfade ? 'active' : ''}`}
+                      onClick={() => setSettings({ ...settings, crossfade: !settings.crossfade })}
+                    >
+                      <div className="toggle-thumb"></div>
+                    </div>
                   </div>
-                  <div
-                    className={`toggle-switch ${settings.crossfade ? 'active' : ''}`}
-                    onClick={() => setSettings({ ...settings, crossfade: !settings.crossfade })}
-                  >
-                    <div className="toggle-thumb"></div>
-                  </div>
+
+                  {settings.crossfade && (
+                    <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-dim)', paddingTop: '12px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{t('crossfadeDuration')}</label>
+                        <span style={{ fontSize: '11px', color: 'var(--text-main)', fontWeight: 600 }}>
+                          {(settings.crossfadeDuration || 2500) / 1000}{t('cfSeconds')}
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min="500"
+                        max="10000"
+                        step="500"
+                        value={settings.crossfadeDuration || 2500}
+                        onChange={(e) => setSettings({ ...settings, crossfadeDuration: parseInt(e.target.value) })}
+                        style={{ width: '100%', accentColor: 'var(--primary)' }}
+                      />
+                    </div>
+                  )}
                 </div>
 
 
@@ -2650,29 +2995,6 @@ function App() {
         <div className="title-info">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--primary)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9h10v2H7z" /></svg>
           <span style={{ marginRight: '8px' }}>SoundCloud Desktop</span>
-
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px',
-            background: 'var(--bg-elevated)',
-            padding: '2px 8px',
-            borderRadius: '12px',
-            fontSize: '10px',
-            border: '1px solid var(--border-dim)',
-            marginLeft: '4px'
-          }}>
-            <div style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              background: connectionStatus === 'connected' ? '#10b981' : (connectionStatus === 'checking' ? '#f59e0b' : '#ef4444'),
-              boxShadow: connectionStatus === 'connected' ? '0 0 6px #10b981' : 'none'
-            }} />
-            <span style={{ color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase' }}>
-              {connectionStatus === 'connected' ? t('connConnected') : (connectionStatus === 'checking' ? t('connChecking') : t('connDisconnected'))}
-            </span>
-          </div>
         </div>
         <div className="window-controls">
           <button className="control-btn" onClick={() => window.electronAPI.toggleMiniPlayer()} title="Toggle Mini-Player">
@@ -2713,6 +3035,7 @@ function App() {
     <div
       className="App"
       data-theme={settings.theme}
+      data-vibe={settings.dynamicBg}
       style={settings.theme === 'Custom' ? {
         '--primary': settings.customTheme?.primary || settings.customThemeColor || '#ff5500',
         '--bg-dark': settings.customTheme?.bgDark || '#000000',
@@ -2732,6 +3055,28 @@ function App() {
           : 'none'
       } : {}}
     >
+      {/* Dynamic Vibe Background */}
+      {settings.dynamicBg && vibeColors && (
+        <div
+          className="dynamic-vibe-bg"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: '100%',
+            height: '100%',
+            background: `radial-gradient(circle at 80% 20%, ${vibeColors[0]} 0%, transparent 50%),
+                         radial-gradient(circle at 20% 80%, ${vibeColors[1]} 0%, transparent 50%),
+                         radial-gradient(circle at 50% 50%, ${vibeColors[0]}22 0%, transparent 100%)`,
+            filter: 'blur(80px) saturate(1.8)',
+            opacity: 0.5,
+            zIndex: 0,
+            transition: 'background 2s ease, opacity 2s ease',
+            pointerEvents: 'none'
+          }}
+        />
+      )}
+
       {/* Background Visualizer Canvas */}
       <canvas
         ref={backgroundCanvasRef}
@@ -2796,22 +3141,25 @@ function App() {
           </button>
           <nav>
             <ul>
-              <li className={activeTab === 'Home' ? 'active' : ''} onClick={() => { setActiveTab('Home'); setSelectedPlaylist(null); setSelectedArtist(null); }}>
+              <li className={activeTab === 'Home' ? 'active' : ''} onClick={() => { setActiveTab('Home'); setSelectedPlaylist(null); setSelectedArtist(null); setViewingTrack(null); }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z" /></svg> <span>{t('home')}</span>
               </li>
-              <li className={activeTab === 'Discover' ? 'active' : ''} onClick={() => { setActiveTab('Discover'); setSelectedPlaylist(null); setSelectedArtist(null); }}>
+              <li className={activeTab === 'Discover' ? 'active' : ''} onClick={() => { setActiveTab('Discover'); setSelectedPlaylist(null); setSelectedArtist(null); setViewingTrack(null); }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z" /></svg> <span>{t('discover')}</span>
               </li>
-              <li className={activeTab === 'Library' ? 'active' : ''} onClick={() => { setActiveTab('Library'); setSelectedPlaylist(null); setSelectedArtist(null); }}>
+              <li className={activeTab === 'Library' ? 'active' : ''} onClick={() => { setActiveTab('Library'); setSelectedPlaylist(null); setSelectedArtist(null); setViewingTrack(null); }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z" /></svg> <span>{t('library')}</span>
               </li>
-              <li className={activeTab === 'Playlists' ? 'active' : ''} onClick={() => { setActiveTab('Playlists'); setSelectedPlaylist(null); setSelectedArtist(null); }}>
+              <li className={activeTab === 'Playlists' ? 'active' : ''} onClick={() => { setActiveTab('Playlists'); setSelectedPlaylist(null); setSelectedArtist(null); setViewingTrack(null); }}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg> <span>{t('playlists')}</span>
               </li>
             </ul>
           </nav>
         </aside>
-        <main className="main-content">
+        <main
+          className="main-content"
+          style={settings.dynamicBg ? { background: 'transparent' } : {}}
+        >
           <header className="App-header">
             <h1>SoundCloud</h1>
             {activeTab === 'Home' && (
@@ -2863,8 +3211,8 @@ function App() {
                 }}
               />
 
-              <div className="player-meta-minimal">
-                <span className="player-title-minimal">{currentTrack.title}</span>
+              <div className="player-meta-minimal" onClick={() => setViewingTrack(currentTrack)} style={{ cursor: 'pointer' }}>
+                <span className="player-title-minimal" title="View Track Details">{currentTrack.title}</span>
                 <span className="player-artist-minimal">{currentTrack.user?.username || 'Unknown Artist'}</span>
                 <div className="progress-container" style={{ display: 'flex', alignItems: 'center', width: '100%', marginTop: '6px' }}>
                   <span style={{ fontSize: '11px', color: 'var(--text-secondary)', minWidth: '45px' }}>{formatTime(seek)}</span>
