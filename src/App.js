@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Howl } from 'howler';
 import './index.css';
-
 const translations = {
   ru: {
     home: 'Главная',
@@ -17,7 +16,6 @@ const translations = {
     audioQualityDesc: 'Выберите предпочтительный битрейт',
     theme: 'Тема оформления',
     themeDesc: 'Настройте внешний вид интерфейса',
-
     importTitle: 'Импорт из SoundCloud',
     importDesc: 'Вставьте ссылку на профиль для импорта лайков',
     eq: 'Эквалайзер',
@@ -38,6 +36,15 @@ const translations = {
     visWave: 'Волна (Осциллограф)',
     visMirrored: 'Зеркальные столбики',
     visCircles: 'Пульсирующие круги',
+    visPos: 'Позиция визуализатора',
+    visPosCenter: 'По центру',
+    visPosLeft: 'Слева',
+    visPosRight: 'Справа',
+    visPosCustom: 'Своя позиция',
+    visPosX: 'Смещение X (%)',
+    visPosY: 'Смещение Y (%)',
+    visWidth: 'Ширина (px)',
+    visHeight: 'Высота (px)',
     sidebarStandard: 'Стандартная',
     sidebarCompact: 'Горизонтальная (сверху)',
     sidebarSlim: 'Узкая (слева)',
@@ -130,6 +137,27 @@ const translations = {
     discordClientIdDesc: 'Ваш ID приложения из Discord Developer Portal',
     dynamicBg: 'Живой фон (Vibe)',
     dynamicBgDesc: 'Автоматическая генерация градиента под цвета обложки',
+    updateAvailable: 'Доступна новая версия',
+    updateDownloading: 'Загрузка обновления...',
+    updateDownloaded: 'Обновление готово к установке',
+    updateInstall: 'Установить и перезапустить',
+    analytics: 'Статистика',
+    statsTitle: 'Аналитика прослушиваний',
+    topTracks: 'Топ треков',
+    topArtists: 'Топ артистов',
+    totalTime: 'Всего прослушано',
+    tracksPlayed: 'Треков прослушано',
+    last7Days: 'За последние 7 дней',
+    minutes: 'мин',
+    hours: 'ч',
+    clearHistory: 'Очистить историю',
+    clearHistoryDesc: 'Удалить список недавно прослушанных треков',
+    clearStats: 'Очистить аналитику',
+    clearStatsDesc: 'Сбросить вашу личную статистику прослушиваний',
+    flowMode: 'Flow Mode (Бесконечное Радио)',
+    flowModeDesc: 'Автоматически включать похожие треки, когда очередь заканчивается',
+    startStation: 'Запустить станцию',
+    shareCard: 'Поделиться карточкой',
   },
   en: {
     home: 'Home',
@@ -145,7 +173,6 @@ const translations = {
     audioQualityDesc: 'Choose your preferred streaming bitrate',
     theme: 'Visual Theme',
     themeDesc: 'Customize the look of your interface',
-
     importTitle: 'Import from SoundCloud',
     importDesc: 'Paste profile URL to import your favorites',
     eq: 'Equalizer',
@@ -166,6 +193,15 @@ const translations = {
     visWave: 'Sine Wave',
     visMirrored: 'Mirrored Bars',
     visCircles: 'Pulsing Circles',
+    visPos: 'Visualizer Position',
+    visPosCenter: 'Center',
+    visPosLeft: 'Left',
+    visPosRight: 'Right',
+    visPosCustom: 'Custom Position',
+    visPosX: 'X Offset (%)',
+    visPosY: 'Y Offset (%)',
+    visWidth: 'Width (px)',
+    visHeight: 'Height (px)',
     sidebarStandard: 'Standard',
     sidebarCompact: 'Horizontal (Top)',
     sidebarSlim: 'Slim (Left)',
@@ -259,12 +295,30 @@ const translations = {
     discordClientIdDesc: 'Your Application ID from Discord Developer Portal',
     dynamicBg: 'Dynamic Vibe',
     dynamicBgDesc: 'Background adapts to the current track artwork',
+    updateAvailable: 'New version available',
+    updateDownloading: 'Downloading update...',
+    updateDownloaded: 'Update ready to install',
+    updateInstall: 'Install and Restart',
+    analytics: 'Analytics',
+    statsTitle: 'Listening Analytics',
+    topTracks: 'Top Tracks',
+    topArtists: 'Top Artists',
+    totalTime: 'Total Time',
+    tracksPlayed: 'Tracks Played',
+    last7Days: 'Last 7 Days',
+    minutes: 'min',
+    hours: 'h',
+    clearHistory: 'Clear History',
+    clearHistoryDesc: 'Remove the list of recently played tracks',
+    clearStats: 'Clear Analytics',
+    clearStatsDesc: 'Reset your personal listening statistics',
+    flowMode: 'Flow Mode',
+    flowModeDesc: 'Automatically play similar tracks when the queue ends',
+    startStation: 'Start Station',
+    shareCard: 'Share Card',
+    playbackSpeed: 'Playback Speed',
   }
 };
-
-
-
-
 function App() {
   const [tracks, setTracks] = useState([]);
   const [playlists, setPlaylists] = useState([]);
@@ -278,21 +332,31 @@ function App() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [volume, setVolume] = useState(1);
-  const [activeTab, setActiveTab] = useState('Home');
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [rateMenuOpen, setRateMenuOpen] = useState(false);
+  const [trackMenuOpen, setTrackMenuOpen] = useState(false);
+  const [isLooping, setIsLooping] = useState(false);
+  const [isShuffled, setIsShuffled] = useState(false);
+  const [activeTab, setActiveTab] = useState('Discover');
   const [likedTracks, setLikedTracks] = useState([]);
   const [likedPlaylists, setLikedPlaylists] = useState([]);
   const [likedTracksQuery, setLikedTracksQuery] = useState('');
   const [libraryDisplayLimit, setLibraryDisplayLimit] = useState(50);
-
+  const [updateStatus, setUpdateStatus] = useState(null);
+  const [updateProgress, setUpdateProgress] = useState(0);
+  const [updateVersion, setUpdateVersion] = useState('');
+  const [trackStats, setTrackStats] = useState([]);
+  const hasRecordedPlayRef = useRef(false);
+  const playStartTimeRef = useRef(0);
   const filteredLikedTracks = useMemo(() => {
+    if (!Array.isArray(likedTracks)) return [];
     if (!likedTracksQuery) return likedTracks;
     const lowerQuery = likedTracksQuery.toLowerCase();
     return likedTracks.filter(track =>
-      track.title.toLowerCase().includes(lowerQuery) ||
-      (track.user && track.user.username.toLowerCase().includes(lowerQuery))
+      track && track.title && track.title.toLowerCase().includes(lowerQuery) ||
+      (track && track.user && track.user.username && track.user.username.toLowerCase().includes(lowerQuery))
     );
   }, [likedTracks, likedTracksQuery]);
-
   useEffect(() => {
     setLibraryDisplayLimit(50);
   }, [activeTab, likedTracksQuery]);
@@ -312,17 +376,19 @@ function App() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isGuestMode, setIsGuestMode] = useState(false);
   const [isMini, setIsMini] = useState(false);
-
-
   const [settings, setSettings] = useState({
     audioQuality: 'High',
     theme: 'Deep Space',
-
     eq: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
     language: 'ru',
     crossfade: true,
     crossfadeDuration: 2500,
     visualizerStyle: 'Bars',
+    visualizerPosition: 'Center',
+    visCustomX: 50,
+    visCustomY: 50,
+    visCustomWidth: 400,
+    visCustomHeight: 80,
     backgroundImage: null,
     backgroundFit: 'cover',
     customThemeColor: '#ff5500',
@@ -333,19 +399,24 @@ function App() {
       bgDark: '#000000',
       bgPanel: '#121214',
       bgElevated: '#1c1c1f',
+      bgHover: '#27272a',
       textMain: '#ffffff',
       textSecondary: '#a1a1aa',
+      textMuted: '#52525b',
+      borderDim: '#27272a',
+      glassBg: 'rgba(0, 0, 0, 0.4)',
+      glassBorder: 'rgba(255, 255, 255, 0.1)',
+      logoColor: '#ff5500',
+      visColor: '#ff5500',
       cardSize: 180
     },
-    customFont: null
+    customFont: null,
+    flowMode: false
   });
-
   const t = (key) => {
     const lang = settings.language || 'ru';
     return translations[lang][key] || translations['en'][key] || key;
   };
-
-
   const filtersRef = useRef([]);
   const analyserRef = useRef(null);
   const canvasRef = useRef(null);
@@ -354,7 +425,16 @@ function App() {
   const animationFrameRef = useRef(null);
   const CROSSFADE_DURATION = settings.crossfadeDuration || 2500;
   const isTransitioningRef = useRef(false);
-
+  const currentTrackRef = useRef(null);
+  const queueRef = useRef([]);
+  const isLoopingRef = useRef(false);
+  const isShuffledRef = useRef(false);
+  const soundRef = useRef(null);
+  useEffect(() => { currentTrackRef.current = currentTrack; }, [currentTrack]);
+  useEffect(() => { queueRef.current = currentQueue; }, [currentQueue]);
+  useEffect(() => { isLoopingRef.current = isLooping; }, [isLooping]);
+  useEffect(() => { isShuffledRef.current = isShuffled; }, [isShuffled]);
+  useEffect(() => { soundRef.current = sound; }, [sound]);
   const [seek, setSeek] = useState(0);
   const [duration, setDuration] = useState(0);
   const [viewingTrack, setViewingTrack] = useState(null);
@@ -364,15 +444,42 @@ function App() {
   const [lyrics, setLyrics] = useState(null);
   const [loadingLyrics, setLoadingLyrics] = useState(false);
   const [vibeColors, setVibeColors] = useState(['#1a1a1a', '#000000']);
-
+  const [waveformSamples, setWaveformSamples] = useState([]);
+  const generateFakeWaveform = (seed) => {
+    const s = parseInt(String(seed).slice(-5)) || 12345;
+    const samples = [];
+    for (let i = 0; i < 150; i++) {
+      const val = 10 + (Math.abs(Math.sin((i + s) * 0.1) * 30) + Math.abs(Math.cos((i + s) * 0.25) * 15));
+      samples.push(val);
+    }
+    return samples;
+  };
+  useEffect(() => {
+    if (window.electronAPI) {
+      const cleanAvail = window.electronAPI.onUpdateAvailable((version) => {
+        setUpdateVersion(version);
+        setUpdateStatus('available');
+      });
+      const cleanProg = window.electronAPI.onUpdateProgress((progress) => {
+        setUpdateStatus('downloading');
+        setUpdateProgress(progress);
+      });
+      const cleanDown = window.electronAPI.onUpdateDownloaded((version) => {
+        setUpdateStatus('downloaded');
+      });
+      return () => {
+        cleanAvail();
+        cleanProg();
+        cleanDown();
+      };
+    }
+  }, []);
   useEffect(() => {
     if (settings.dynamicBg && currentTrack && (currentTrack.artwork_url || currentTrack.user?.avatar_url)) {
       const img = new Image();
       img.crossOrigin = 'Anonymous';
       const rawUrl = currentTrack.artwork_url || currentTrack.user?.avatar_url || '';
-      // Sample from a medium size for better performance and CORS reliability
       img.src = rawUrl.replace('-large', '-t300x300').replace('-small', '-t300x300');
-
       img.onload = () => {
         try {
           const canvas = document.createElement('canvas');
@@ -380,7 +487,6 @@ function App() {
           canvas.width = 10;
           canvas.height = 10;
           ctx.drawImage(img, 0, 0, 10, 10);
-
           const data = ctx.getImageData(0, 0, 10, 10).data;
           const colors = [];
           for (let i = 0; i < data.length; i += 4) {
@@ -388,12 +494,10 @@ function App() {
             const g = data[i + 1];
             const b = data[i + 2];
             const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-            // Filter for saturated but not too dark/light colors
             if (brightness > 30 && brightness < 200) {
               colors.push(`rgb(${r}, ${g}, ${b})`);
             }
           }
-
           if (colors.length >= 2) {
             setVibeColors([colors[0], colors[Math.min(colors.length - 1, 15)]]);
           } else if (colors.length === 1) {
@@ -408,33 +512,41 @@ function App() {
       };
     }
   }, [currentTrack, settings.dynamicBg]);
-
   useEffect(() => {
     if (viewingTrack && window.electronAPI) {
       setLyrics(null);
       setActiveDetailTab('info');
       if (window.electronAPI.getComments) window.electronAPI.getComments(viewingTrack.id).then(setTrackComments);
       if (window.electronAPI.getTrackLikers) window.electronAPI.getTrackLikers(viewingTrack.id).then(setTrackLikers);
+      if (viewingTrack.waveform_url) {
+        const jsonUrl = viewingTrack.waveform_url.replace('.png', '.json');
+        fetch(jsonUrl)
+          .then(r => r.json())
+          .then(data => {
+            if (data.samples) setWaveformSamples(data.samples);
+            else setWaveformSamples(generateFakeWaveform(viewingTrack.id));
+          })
+          .catch(() => setWaveformSamples(generateFakeWaveform(viewingTrack.id)));
+      } else {
+        setWaveformSamples(generateFakeWaveform(viewingTrack.id));
+      }
     } else {
       setTrackComments([]);
       setTrackLikers([]);
       setLyrics(null);
+      setWaveformSamples([]);
     }
   }, [viewingTrack]);
-
   useEffect(() => {
     const handleMouseNav = (e) => {
       if (e.button === 3 || e.button === 4) {
-        const TABS = ['Home', 'Discover', 'Library', 'Playlists'];
+        const TABS = ['Home', 'Discover', 'Library', 'Playlists', 'Analytics'];
         const currentIndex = TABS.indexOf(activeTab);
         if (currentIndex === -1) return;
-
         const direction = e.button === 3 ? 1 : -1;
         let nextIndex = currentIndex + direction;
-
         if (nextIndex < 0) nextIndex = TABS.length - 1;
         if (nextIndex >= TABS.length) nextIndex = 0;
-
         setActiveTab(TABS[nextIndex]);
         setViewingTrack(null);
         setSelectedArtist(null);
@@ -442,11 +554,29 @@ function App() {
         setSettingsOpen(false);
       }
     };
-
     window.addEventListener('mousedown', handleMouseNav);
     return () => window.removeEventListener('mousedown', handleMouseNav);
   }, [activeTab]);
-
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (trackMenuOpen) {
+        const container = document.querySelector('.rate-menu-container');
+        if (container && !container.contains(event.target)) {
+          setTrackMenuOpen(false);
+        }
+      }
+      if (rateMenuOpen) {
+        const container = document.querySelector('.rate-menu-container');
+        if (container && !container.contains(event.target)) {
+          setRateMenuOpen(false);
+        }
+      }
+    };
+    if (trackMenuOpen || rateMenuOpen) {
+      window.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => window.removeEventListener('mousedown', handleClickOutside);
+  }, [trackMenuOpen, rateMenuOpen]);
   const fetchLyrics = async (forceTitle = null) => {
     if (!viewingTrack || (lyrics && !forceTitle) || loadingLyrics) return;
     setLoadingLyrics(true);
@@ -456,29 +586,23 @@ function App() {
         .replace(/\([^)]*\)/g, '')
         .replace(/\[[^\]]*\]/g, '')
         .trim();
-
       console.log(`[Lyrics] Attempting: ${viewingTrack.user.username} - ${cleanTitle}`);
-
       let res = await window.electronAPI.getLyrics({
         artist: viewingTrack.user.username,
         title: cleanTitle
       });
-
       if (!res) {
         res = await window.electronAPI.getLyrics({
           artist: '',
           title: cleanTitle
         });
       }
-
-      // Final fallback: Use original title without any cleaning
       if (!res && !forceTitle) {
         res = await window.electronAPI.getLyrics({
           artist: viewingTrack.user.username,
           title: viewingTrack.title
         });
       }
-
       setLyrics(res || 'Lyrics not found.');
     } catch (e) {
       console.error(e);
@@ -487,7 +611,6 @@ function App() {
       setLoadingLyrics(false);
     }
   };
-
   const handleSelectFont = async () => {
     if (window.electronAPI) {
       const fontPath = await window.electronAPI.selectFont();
@@ -497,11 +620,9 @@ function App() {
       }
     }
   };
-
   const handleResetFont = () => {
     setSettings({ ...settings, customFont: null });
   };
-
   useEffect(() => {
     if (settings.customFont) {
       const fontName = 'CustomUserFont';
@@ -529,34 +650,16 @@ function App() {
       document.documentElement.style.removeProperty('--app-font');
     }
   }, [settings.customFont]);
-  const [isLooping, setIsLooping] = useState(false);
-  const [isShuffled, setIsShuffled] = useState(false);
-
-  const currentTrackRef = useRef(currentTrack);
   useEffect(() => {
-    currentTrackRef.current = currentTrack;
-  }, [currentTrack]);
-
-  const isShuffledRef = useRef(isShuffled);
-  useEffect(() => {
-    isShuffledRef.current = isShuffled;
-  }, [isShuffled]);
-
-  const isLoopingRef = useRef(isLooping);
-  useEffect(() => {
-    isLoopingRef.current = isLooping;
     if (sound) {
       sound.loop(isLooping);
     }
   }, [isLooping, sound]);
-
-
   useEffect(() => {
     let interval;
     const fetchDiscoverData = async () => {
       if (activeTab === 'Discover' && window.electronAPI) {
         try {
-
           const [recData, chartData] = await Promise.all([
             window.electronAPI.getRecommendations(),
             window.electronAPI.getCharts()
@@ -568,27 +671,25 @@ function App() {
         }
       }
     };
-
     if (activeTab === 'Discover') {
       fetchDiscoverData();
       interval = setInterval(fetchDiscoverData, 120000);
     }
-
     return () => clearInterval(interval);
   }, [activeTab]);
-
   const searchTracks = async (isLoadMore = false) => {
     if ((!query && !isLoadMore) || !window.electronAPI || (isLoadMore && !nextHref) || loading) return;
-
     setLoading(true);
     if (!isLoadMore) {
+      setActiveTab('Home');
+      setSearchType('all');
       setTracks([]);
       setPlaylists([]);
       setArtists([]);
       setSelectedPlaylist(null);
-      setSelectedArtist(null); setViewingTrack(null);
+      setSelectedArtist(null);
+      setViewingTrack(null);
     }
-
     try {
       if (searchType === 'all') {
         const [tRes, pRes, aRes] = await Promise.all([
@@ -620,16 +721,13 @@ function App() {
       setLoading(false);
     }
   };
-
   const handleScroll = (e) => {
     const threshold = 200;
     const bottom = e.target.scrollHeight - e.target.scrollTop - e.target.clientHeight < threshold;
-
     if (bottom && nextHref && !loading && !selectedPlaylist) {
       searchTracks(true);
     }
   };
-
   const handleSeek = (e) => {
     const newSeek = Number(e.target.value);
     setSeek(newSeek);
@@ -637,7 +735,6 @@ function App() {
       sound.seek(newSeek);
     }
   };
-
   const handleHeaderSeek = (e) => {
     if (!duration || !sound) return;
     const rect = e.target.getBoundingClientRect();
@@ -646,14 +743,11 @@ function App() {
     sound.seek(seekTime);
     setSeek(seekTime);
   };
-
-
   const formatTime = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
     return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
   };
-
   useEffect(() => {
     let interval;
     if (isPlaying && sound) {
@@ -661,8 +755,19 @@ function App() {
         const currentSeek = sound.seek();
         if (typeof currentSeek === 'number') {
           setSeek(currentSeek);
+          const threshold = Math.min(20, (sound.duration() || 0) * 0.5);
+          if (currentSeek >= threshold && !hasRecordedPlayRef.current && currentTrackRef.current) {
+            hasRecordedPlayRef.current = true;
+            window.electronAPI.recordPlay({
+              id: currentTrackRef.current.id,
+              title: currentTrackRef.current.title,
+              artist: currentTrackRef.current.user?.username || 'Unknown',
+              duration: sound.duration()
+            }).then(() => {
+              window.electronAPI.getStats().then(setTrackStats);
+            });
+          }
         }
-
         const soundDuration = sound.duration();
         const useCrossfade = settings.crossfade && !isLoopingRef.current;
         if (useCrossfade && soundDuration > 0 && (soundDuration - currentSeek) <= (CROSSFADE_DURATION / 1000) && !isTransitioningRef.current) {
@@ -673,25 +778,15 @@ function App() {
     }
     return () => clearInterval(interval);
   }, [isPlaying, sound]);
-
-
-
-
   const addToHistory = async (item) => {
     if (window.electronAPI) {
       const updated = await window.electronAPI.addToHistory(item);
       setHistory(updated);
     }
   };
-
-
-  const queueRef = useRef([]);
-
   useEffect(() => {
     queueRef.current = currentQueue;
   }, [currentQueue]);
-
-
   const togglePlay = () => {
     if (sound) {
       if (isPlaying) {
@@ -701,18 +796,15 @@ function App() {
       }
     }
   };
-
-  const playNext = () => {
+  const playNext = async () => {
     const q = queueRef.current;
     const current = currentTrackRef.current;
     if (!current || !q || q.length === 0) {
       setIsPlaying(false);
       return;
     }
-
     const currentId = String(current.id);
     const idx = q.findIndex(t => String(t.id) === currentId);
-
     if (isShuffledRef.current && q.length > 1) {
       let nextIdx = Math.floor(Math.random() * q.length);
       if (idx !== -1 && q.length > 1 && nextIdx === idx) {
@@ -721,15 +813,27 @@ function App() {
       playTrackSecure(q[nextIdx]);
       return;
     }
-
     if (idx !== -1 && idx < q.length - 1) {
       const nextTrack = q[idx + 1];
       playTrackSecure(nextTrack);
+    } else if (settings.flowMode) {
+      console.log('Flow Mode: Queue ended. Fetching station tracks...');
+      if (window.electronAPI) {
+        try {
+          const stationTracks = await window.electronAPI.getStationTracks(current.id);
+          if (stationTracks && stationTracks.length > 0) {
+            const newQueue = [...q, ...stationTracks];
+            playTrackSecure(stationTracks[0], newQueue);
+          }
+        } catch (e) {
+          console.error('Flow Mode Error:', e);
+          setIsPlaying(false);
+        }
+      }
     } else {
       setIsPlaying(false);
     }
   };
-
   const playPrevious = () => {
     const q = queueRef.current;
     const current = currentTrackRef.current;
@@ -739,39 +843,32 @@ function App() {
       playTrackSecure(q[idx - 1]);
     }
   };
-
   const playTrackSecure = async (track, newQueue = null) => {
-
     if (track.kind === 'playlist') {
       openPlaylist(track);
       addToHistory(track);
       return;
     }
-
     addToHistory(track);
-
     if (newQueue) {
       setCurrentQueue(newQueue);
       queueRef.current = newQueue;
     }
-
     setCurrentTrack(track);
     currentTrackRef.current = track;
+    hasRecordedPlayRef.current = false;
     setSeek(0);
     setDuration(0);
     isTransitioningRef.current = true;
     const previousSound = sound;
     const useCrossfade = settings.crossfade && !isLoopingRef.current;
-
     if (previousSound) {
       previousSound.off();
     }
-
     if (previousSound && !useCrossfade) {
       previousSound.stop();
       previousSound.unload();
     }
-
     try {
       const streamUrl = await window.electronAPI.getTrackStream(track.id);
       const newSound = new Howl({
@@ -779,6 +876,7 @@ function App() {
         html5: false,
         format: ['mp3', 'mpeg'],
         volume: useCrossfade ? 0 : volume,
+        rate: playbackRate,
         loop: isLooping,
         onplay: () => {
           setIsPlaying(true);
@@ -786,16 +884,13 @@ function App() {
           if (useCrossfade) {
             newSound.fade(0, volume, (settings.crossfadeDuration || 2500));
           }
-
           if (previousSound && useCrossfade) {
             previousSound.fade(previousSound.volume(), 0, (settings.crossfadeDuration || 2500));
             setTimeout(() => {
               try { previousSound.unload(); } catch (e) { }
             }, (settings.crossfadeDuration || 2500) + 1000);
           }
-
           isTransitioningRef.current = false;
-
           if (window.Howler && window.Howler.ctx) {
             if (window.Howler.ctx.state === 'suspended') {
               window.Howler.ctx.resume();
@@ -804,7 +899,6 @@ function App() {
               connectEQ();
             }, 100);
           }
-
           if (window.electronAPI && window.electronAPI.rpcUpdate) {
             let artwork = track.artwork_url;
             if (artwork) artwork = artwork.replace('large', 't500x500');
@@ -822,7 +916,6 @@ function App() {
           if (window.electronAPI && window.electronAPI.rpcUpdate) {
             let artwork = track.artwork_url;
             if (artwork) artwork = artwork.replace('large', 't500x500');
-
             window.electronAPI.rpcUpdate({
               title: track.title,
               artist: track.user?.username,
@@ -838,7 +931,6 @@ function App() {
           if (window.electronAPI && window.electronAPI.rpcUpdate) {
             let artwork = track.artwork_url;
             if (artwork) artwork = artwork.replace('large', 't500x500');
-
             window.electronAPI.rpcUpdate({
               title: track.title,
               artist: track.user?.username,
@@ -862,7 +954,6 @@ function App() {
           playNext();
         },
       });
-
       setSound(newSound);
       newSound.play();
     } catch (error) {
@@ -870,7 +961,6 @@ function App() {
       console.error('Error playing track:', error);
     }
   };
-
   const openPlaylist = async (playlist) => {
     setLoading(true);
     try {
@@ -882,37 +972,130 @@ function App() {
       setLoading(false);
     }
   };
-
+  const handleStartStation = async (e, track) => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    const targetTrack = track || e;
+    if (!targetTrack || (!targetTrack.id && targetTrack.id !== 0)) {
+      console.error("Invalid track for station:", targetTrack);
+      return;
+    }
+    setLoading(true);
+    try {
+      console.log(`[Station] Starting station for track ID: ${targetTrack.id} (${targetTrack.title})`);
+      const tracks = await window.electronAPI.getStationTracks(targetTrack.id);
+      if (tracks && tracks.length > 0) {
+        setCurrentQueue(tracks);
+        queueRef.current = tracks;
+        playTrackSecure(tracks[0]);
+      } else {
+        alert("No station tracks found for this track.");
+      }
+    } catch (e) {
+      console.error("Failed to start station", e);
+      alert("Could not start station for this track.");
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleShare = async (e, track) => {
+    if (e) e.stopPropagation();
+    if (!track) return;
+    if (!window.electronAPI || !window.electronAPI.copyImageToClipboard) {
+      alert("Clipboard API not available.");
+      return;
+    }
+    const width = 1200;
+    const height = 630;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    let bgGradient = ctx.createLinearGradient(0, 0, width, height);
+    if (String(track.id) === String(currentTrack?.id) && settings.dynamicBg && vibeColors && vibeColors.length >= 2) {
+      bgGradient.addColorStop(0, vibeColors[0]);
+      bgGradient.addColorStop(1, vibeColors[1]);
+    } else {
+      bgGradient.addColorStop(0, '#111');
+      bgGradient.addColorStop(1, '#333');
+    }
+    ctx.fillStyle = bgGradient;
+    ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+    ctx.fillRect(0, 0, width, height);
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    const artworkUrl = (track.artwork_url || track.user?.avatar_url || '').replace('-large', '-t500x500');
+    img.onload = async () => {
+      ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+      ctx.shadowBlur = 40;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 20;
+      const artSize = 350;
+      const artX = 100;
+      const artY = (height - artSize) / 2;
+      ctx.drawImage(img, artX, artY, artSize, artSize);
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 60px Inter, sans-serif';
+      ctx.textBaseline = 'top';
+      const textX = artX + artSize + 60;
+      const textY = artY + 40;
+      const maxWidth = width - textX - 80;
+      ctx.fillText(track.title, textX, textY, maxWidth);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+      ctx.font = '500 40px Inter, sans-serif';
+      ctx.fillText(track.user?.username || 'Unknown Artist', textX, textY + 80, maxWidth);
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.font = '600 24px Inter, sans-serif';
+      ctx.fillText('SoundCloud Desktop', textX, height - artY - 40);
+      const dataUrl = canvas.toDataURL('image/png');
+      const success = await window.electronAPI.copyImageToClipboard(dataUrl);
+      if (success) {
+        alert('Share Card copied to clipboard!');
+      } else {
+        alert('Failed to copy to clipboard.');
+      }
+    };
+    img.onerror = () => {
+      alert("Failed to load artwork for sharing.");
+    };
+    img.src = artworkUrl;
+  };
   const closePlaylist = () => {
     setSelectedPlaylist(null);
   };
-
   const toggleLoop = () => {
     const newLoop = !isLooping;
     setIsLooping(newLoop);
+    isLoopingRef.current = newLoop;
+    if (sound) {
+      sound.loop(newLoop);
+    }
   };
-
+  const handleRateChange = (newRate) => {
+    setPlaybackRate(newRate);
+    if (soundRef.current) {
+      soundRef.current.rate(newRate);
+    }
+  };
+  useEffect(() => {
+    if (soundRef.current) {
+      soundRef.current.rate(playbackRate);
+    }
+  }, [playbackRate]);
   const toggleShuffle = () => {
     setIsShuffled(!isShuffled);
   };
-
   useEffect(() => {
     if (sound) {
       sound.volume(volume);
     }
   }, [volume, sound]);
-
-
-
-
   const connectEQ = () => {
     if (typeof window === 'undefined' || !window.Howler || !window.Howler.ctx || window.Howler.ctx.state === 'closed') return;
-
     const ctx = window.Howler.ctx;
-
-
     if (filtersRef.current.length === 0) {
-
       const freqs = [32, 64, 125, 250, 500, 1000, 2000, 4000, 8000, 16000];
       filtersRef.current = freqs.map((freq, i) => {
         const filter = ctx.createBiquadFilter();
@@ -922,42 +1105,32 @@ function App() {
         return filter;
       });
     }
-
-
     if (!analyserRef.current) {
       analyserRef.current = ctx.createAnalyser();
       analyserRef.current.fftSize = 256;
       analyserRef.current.smoothingTimeConstant = 0.8;
     }
-
-
     try {
       if (ctx.state === 'suspended') {
         ctx.resume();
       }
-
       window.Howler.masterGain.disconnect();
       window.Howler.masterGain.connect(filtersRef.current[0]);
-
       for (let i = 0; i < filtersRef.current.length - 1; i++) {
         filtersRef.current[i].disconnect();
         filtersRef.current[i].connect(filtersRef.current[i + 1]);
       }
-
       filtersRef.current[filtersRef.current.length - 1].disconnect();
       filtersRef.current[filtersRef.current.length - 1].connect(analyserRef.current);
-
       analyserRef.current.disconnect();
       analyserRef.current.connect(ctx.destination);
     } catch (e) {
       console.warn("EQ Connection issue:", e);
     }
   };
-
   useEffect(() => {
     connectEQ();
   }, [settingsOpen]);
-
   useEffect(() => {
     if (filtersRef.current.length > 0) {
       filtersRef.current.forEach((filter, i) => {
@@ -965,39 +1138,32 @@ function App() {
       });
     }
   }, [settings.eq]);
-
-
-
   useEffect(() => {
     const loadData = async () => {
       if (window.electronAPI) {
         try {
-
           const savedSettings = await window.electronAPI.getSettings();
           if (savedSettings) {
-            // Migration for old 5-band EQ
             if (savedSettings.eq && savedSettings.eq.length !== 10) {
               savedSettings.eq = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
             }
             setSettings(savedSettings);
             if (savedSettings.volume !== undefined) setVolume(savedSettings.volume);
           }
-
           const likes = await window.electronAPI.getLikes();
           setLikedTracks(likes);
           const savedPlaylists = await window.electronAPI.getLikedPlaylists();
           setLikedPlaylists(savedPlaylists);
-
           const hist = await window.electronAPI.getHistory();
           setHistory(hist);
-
           const user = await window.electronAPI.getSCUser();
           setScUser(user);
           if (user && user.permalink_url) {
             try {
-              const { tracks, playlists } = await window.electronAPI.importSCLikes(user.permalink_url);
-              setLikedTracks(tracks);
-              setLikedPlaylists(playlists);
+              const tracks = await window.electronAPI.importSCLikes(user.permalink_url);
+              if (Array.isArray(tracks)) setLikedTracks(tracks);
+              const playlists = await window.electronAPI.importSCPlaylists(user.permalink_url);
+              if (Array.isArray(playlists)) setLikedPlaylists(playlists);
             } catch (err) {
               console.error('Auto-sync failed on startup:', err);
             }
@@ -1010,13 +1176,10 @@ function App() {
     };
     loadData();
   }, []);
-
-
   const controlsRef = useRef({ togglePlay, playNext, playPrevious });
   useEffect(() => {
     controlsRef.current = { togglePlay, playNext, playPrevious };
   }, [togglePlay, playNext, playPrevious]);
-
   useEffect(() => {
     if (window.electronAPI && window.electronAPI.onMediaControl) {
       const cleanup = window.electronAPI.onMediaControl((action) => {
@@ -1029,7 +1192,6 @@ function App() {
       };
     }
   }, []);
-
   useEffect(() => {
     if (window.electronAPI && window.electronAPI.onMiniPlayerState) {
       const cleanup = window.electronAPI.onMiniPlayerState((state) => {
@@ -1038,14 +1200,12 @@ function App() {
       return () => cleanup();
     }
   }, []);
-
   useEffect(() => {
     if (dataLoaded && window.electronAPI) {
       const fullSettings = { ...settings, volume };
       window.electronAPI.saveSettings(fullSettings);
     }
   }, [settings, volume, dataLoaded]);
-
   const handleClearLikes = async () => {
     if (window.confirm("Are you sure you want to clear ALL liked tracks? This cannot be undone.")) {
       if (window.electronAPI) {
@@ -1054,8 +1214,6 @@ function App() {
       }
     }
   };
-
-
   useEffect(() => {
     const handleResize = () => {
       if (backgroundCanvasRef.current) {
@@ -1065,54 +1223,64 @@ function App() {
     };
     window.addEventListener('resize', handleResize);
     handleResize();
-
     if (!isPlaying) {
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
       return () => window.removeEventListener('resize', handleResize);
     }
-
     let r = 255, g = 85, b = 0;
-    const tempEl = document.createElement('div');
-    tempEl.style.color = 'var(--primary)';
-    document.body.appendChild(tempEl);
-    const computed = getComputedStyle(tempEl).color;
-    document.body.removeChild(tempEl);
-    const match = computed.match(/\d+/g);
-    if (match && match.length >= 3) {
-      [r, g, b] = match.map(Number);
-    } else if (settings.customThemeColor && settings.customThemeColor.startsWith('#')) {
-      const hex = settings.customThemeColor.substring(1);
+    let visColor = 'var(--primary)';
+    if (settings.dynamicBg && vibeColors && vibeColors[0]) {
+      visColor = vibeColors[0];
+    } else if (settings.theme === 'Custom' && settings.customTheme?.visColor) {
+      visColor = settings.customTheme.visColor;
+    }
+    if (visColor.startsWith('#')) {
+      const hex = visColor.substring(1);
       if (hex.length === 6) {
         r = parseInt(hex.substring(0, 2), 16);
         g = parseInt(hex.substring(2, 4), 16);
         b = parseInt(hex.substring(4, 6), 16);
+      } else if (hex.length === 3) {
+        r = parseInt(hex[0] + hex[0], 16);
+        g = parseInt(hex[1] + hex[1], 16);
+        b = parseInt(hex[2] + hex[2], 16);
+      }
+    } else if (visColor.startsWith('rgb')) {
+      const match = visColor.match(/\d+/g);
+      if (match && match.length >= 3) {
+        [r, g, b] = match.map(Number);
+      }
+    } else {
+      const tempEl = document.createElement('div');
+      tempEl.style.color = visColor;
+      document.body.appendChild(tempEl);
+      const computed = getComputedStyle(tempEl).color;
+      document.body.removeChild(tempEl);
+      const match = computed.match(/\d+/g);
+      if (match && match.length >= 3) {
+        [r, g, b] = match.map(Number);
       }
     }
     const rgb = `${r}, ${g}, ${b}`;
     const particles = [];
     const maxParticles = 100;
-
     const draw = () => {
       if (!analyserRef.current) {
         animationFrameRef.current = requestAnimationFrame(draw);
         return;
       }
-
       const analyser = analyserRef.current;
       const bufferLength = analyser.frequencyBinCount;
       const dataArray = new Uint8Array(bufferLength);
       analyser.getByteFrequencyData(dataArray);
-
       const style = settings.visualizerStyle || 'Bars';
-
-      // 1. FOOTER CANVAS (Small Player)
       if (canvasRef.current) {
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
+        if (Math.abs(canvas.width - canvas.clientWidth) > 5) canvas.width = canvas.clientWidth;
+        if (Math.abs(canvas.height - canvas.clientHeight) > 5) canvas.height = canvas.clientHeight;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
         const footerStyle = ['Particles', 'Frequency'].includes(style) ? 'Bars' : style;
-
         if (footerStyle === 'Bars') {
           const barWidth = (canvas.width / bufferLength) * 2.5;
           let x = 0;
@@ -1150,51 +1318,56 @@ function App() {
           ctx.strokeStyle = `rgba(${rgb}, 0.8)`; ctx.stroke();
         }
       }
-
-      // 2. HEADER CANVAS (Track Detail View)
-      if (headerCanvasRef.current) {
+      if (headerCanvasRef.current && viewingTrack) {
         const canvas = headerCanvasRef.current;
         const ctx = canvas.getContext('2d');
         if (Math.abs(canvas.width - canvas.clientWidth) > 5) canvas.width = canvas.clientWidth;
         if (Math.abs(canvas.height - canvas.clientHeight) > 5) canvas.height = canvas.clientHeight;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        if (style === 'Bars' || style === 'Particles' || style === 'Frequency') {
-          const barWidth = (canvas.width / bufferLength) * 2.5;
-          let x = 0;
-          for (let i = 0; i < bufferLength; i++) {
-            const barHeight = (dataArray[i] / 255) * canvas.height * 0.8;
-            ctx.fillStyle = `hsla(${(i / bufferLength) * 360}, 80%, 60%, 0.5)`;
-            ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-            x += barWidth + 1;
-          }
-        } else if (style === 'Waveform' || style === 'Wave') {
-          ctx.lineWidth = 3; ctx.strokeStyle = `rgba(${rgb}, 0.8)`; ctx.beginPath();
-          const sw = canvas.width / bufferLength; let x = 0;
-          for (let i = 0; i < bufferLength; i++) {
-            const v = dataArray[i] / 128.0; const y = (v * canvas.height) / 2;
-            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-            x += sw;
-          } ctx.stroke();
-        } else if (style === 'Mirrored') {
-          const bw = (canvas.width / bufferLength) * 2.5; let x = 0;
-          for (let i = 0; i < bufferLength; i++) {
-            const bh = (dataArray[i] / 255) * (canvas.height / 2) * 0.8;
-            ctx.fillStyle = `hsla(${(i / bufferLength) * 360}, 80%, 60%, 0.5)`;
-            ctx.fillRect(x, canvas.height / 2 - bh, bw, bh);
-            ctx.fillRect(x, canvas.height / 2, bw, bh);
-            x += bw + 1;
-          }
+        const currentSamples = waveformSamples && waveformSamples.length > 0
+          ? waveformSamples
+          : generateFakeWaveform(viewingTrack.id);
+        const isPlayingThis = currentTrack && String(currentTrack.id) === String(viewingTrack.id);
+        const currentSeek = (isPlayingThis && sound) ? sound.seek() : 0;
+        const totalDur = (viewingTrack.duration || viewingTrack.full_duration || 1) / 1000;
+        const progressPercent = currentSeek / totalDur;
+        const gap = 1;
+        const barWidth = 2;
+        const totalBarWidth = barWidth + gap;
+        const numBars = Math.floor(canvas.width / totalBarWidth);
+        const maxVal = Math.max(...currentSamples) || 1;
+        for (let i = 0; i < numBars; i++) {
+          const sampleIdx = Math.floor((i / numBars) * currentSamples.length);
+          const val = currentSamples[sampleIdx];
+          const x = i * totalBarWidth;
+          const h = (val / maxVal) * canvas.height * 0.8;
+          const isPlayed = (i / numBars) < progressPercent;
+          const topH = h * 0.7;
+          const botH = h * 0.3;
+          ctx.fillStyle = isPlayed ? 'var(--primary)' : 'rgba(255, 255, 255, 0.4)';
+          ctx.fillRect(x, (canvas.height * 0.6) - topH, barWidth, topH);
+          ctx.fillStyle = isPlayed ? 'rgba(255, 85, 0, 0.5)' : 'rgba(255, 255, 255, 0.25)';
+          ctx.fillRect(x, (canvas.height * 0.6) + 1, barWidth, botH);
+        }
+        if (trackComments && trackComments.length > 0) {
+          trackComments.forEach(comment => {
+            const commentPos = (comment.timestamp / (totalDur * 1000)) * canvas.width;
+            ctx.beginPath();
+            ctx.arc(commentPos, canvas.height - 5, 2.5, 0, Math.PI * 2);
+            ctx.fillStyle = 'white';
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(0,0,0,0.5)';
+            ctx.lineWidth = 1;
+            ctx.stroke();
+          });
         }
       }
-
-      // 3. BACKGROUND CANVAS
       if (backgroundCanvasRef.current) {
         const canvas = backgroundCanvasRef.current;
         const ctx = canvas.getContext('2d');
-
         if (style === 'Particles') {
-          ctx.fillStyle = '#00000040'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
           const average = dataArray.reduce((s, a) => s + a, 0) / bufferLength;
           if (average > 100 && particles.length < maxParticles) {
             particles.push({
@@ -1222,21 +1395,17 @@ function App() {
             x += bw + 4;
           }
         } else {
-          // Clear if not in background mode
           ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
       }
-
       animationFrameRef.current = requestAnimationFrame(draw);
     };
-
     draw();
     return () => {
       window.removeEventListener('resize', handleResize);
       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
   }, [isPlaying, settings.visualizerStyle, settings.theme, settings.customThemeColor, viewingTrack]);
-
   const handleImportLikes = async () => {
     if (!scProfileUrl) return;
     if (!window.electronAPI) {
@@ -1245,10 +1414,11 @@ function App() {
     }
     setIsImporting(true);
     try {
-      const { tracks, playlists } = await window.electronAPI.importSCLikes(scProfileUrl);
-      setLikedTracks(tracks);
-      setLikedPlaylists(playlists);
-      alert(`${tracks.length} tracks and ${playlists.length} playlists synchronized!`);
+      const tracks = await window.electronAPI.importSCLikes(scProfileUrl);
+      if (Array.isArray(tracks)) setLikedTracks(tracks);
+      const playlists = await window.electronAPI.importSCPlaylists(scProfileUrl);
+      if (Array.isArray(playlists)) setLikedPlaylists(playlists);
+      alert(`Synchronization complete!`);
       setScProfileUrl('');
     } catch (error) {
       console.error('Import failed:', error);
@@ -1257,7 +1427,6 @@ function App() {
       setIsImporting(false);
     }
   };
-
   const extractAverageColor = (src) => {
     return new Promise((resolve) => {
       const isVideo = src.match(/\.(mp4|webm)$/i);
@@ -1266,9 +1435,8 @@ function App() {
         video.src = src;
         video.crossOrigin = "Anonymous";
         video.muted = true;
-        video.currentTime = 1; // Seek to 1s to avoid black start frame
+        video.currentTime = 1;
         video.onloadeddata = () => {
-          // small delay to ensure frame is ready
           setTimeout(() => {
             try {
               const canvas = document.createElement('canvas');
@@ -1289,7 +1457,6 @@ function App() {
           }, 200);
         };
         video.onerror = () => resolve('#ff5500');
-        // Trigger load
         video.load();
       } else {
         const img = new Image();
@@ -1302,7 +1469,6 @@ function App() {
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, 1, 1);
           const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-          // Check brightness to avoid white/light colors
           const brightness = (r * 299 + g * 587 + b * 114) / 1000;
           if (brightness > 200) {
             resolve('#ff5500');
@@ -1314,7 +1480,6 @@ function App() {
       }
     });
   };
-
   const handleSelectPlaceholder = async () => {
     if (window.electronAPI && window.electronAPI.selectImage) {
       const filePath = await window.electronAPI.selectImage();
@@ -1325,14 +1490,10 @@ function App() {
           customTheme: { ...settings.customTheme, placeholder: url }
         };
         setSettings(newSettings);
-        // Save settings is handled by useEffect usually, or explicit save?
-        // App.js usually relies on explicit save or state change triggering save?
-        // Let's check handleCustomBackground. It calls window.electronAPI.saveSettings(newSettings);
         window.electronAPI.saveSettings(newSettings);
       }
     }
   };
-
   const handleCustomBackground = async () => {
     if (window.electronAPI) {
       const filePath = await window.electronAPI.selectCustomBackground();
@@ -1349,7 +1510,6 @@ function App() {
       }
     }
   };
-
   const handleSCConnect = async () => {
     if (window.electronAPI) {
       setIsLoggingIn(true);
@@ -1357,12 +1517,12 @@ function App() {
         const result = await window.electronAPI.connectSoundCloud();
         if (result.success && result.user) {
           setScUser(result.user);
-
           if (result.user.permalink_url) {
             try {
-              const { tracks, playlists } = await window.electronAPI.importSCLikes(result.user.permalink_url);
-              setLikedTracks(tracks);
-              setLikedPlaylists(playlists);
+              const tracks = await window.electronAPI.importSCLikes(result.user.permalink_url);
+              if (Array.isArray(tracks)) setLikedTracks(tracks);
+              const playlists = await window.electronAPI.importSCPlaylists(result.user.permalink_url);
+              if (Array.isArray(playlists)) setLikedPlaylists(playlists);
             } catch (err) {
               console.error('Auto-sync failed:', err);
             }
@@ -1373,14 +1533,12 @@ function App() {
       }
     }
   };
-
   const handleSCDisconnect = async () => {
     if (window.electronAPI) {
       await window.electronAPI.disconnectSoundCloud();
       setScUser(null);
     }
   };
-
   const handleToggleLike = async (e, item) => {
     e.stopPropagation();
     if (window.electronAPI) {
@@ -1393,28 +1551,22 @@ function App() {
       }
     }
   };
-
   useEffect(() => {
-    // Apply card size from custom theme if active
     if (settings.theme === 'Custom' && settings.customTheme && settings.customTheme.cardSize) {
       document.documentElement.style.setProperty('--card-size', `${settings.customTheme.cardSize}px`);
     } else {
       document.documentElement.style.removeProperty('--card-size');
     }
   }, [settings.theme, settings.customTheme]);
-
   const isLiked = (item) => {
+    if (!item) return false;
     if (item.kind === 'playlist') {
       return Array.isArray(likedPlaylists) && likedPlaylists.some(p => p.id === item.id);
     }
     return Array.isArray(likedTracks) && likedTracks.some(t => t.id === item.id);
   };
-
-
   const defaultPlaceholder = require('./assets/holder.png');
   const placeholderImg = (settings.theme === 'Custom' && settings.customTheme?.placeholder) || defaultPlaceholder;
-
-
   const getContextQueue = () => {
     if (selectedPlaylist) return selectedPlaylist.tracks;
     if (selectedArtist) {
@@ -1425,7 +1577,6 @@ function App() {
     if (activeTab === 'Library') return likedTracks;
     return tracks;
   };
-
   const renderTrackCard = (item) => (
     <div key={item.id} className="track-card" onClick={() => playTrackSecure(item, getContextQueue())}>
       <button
@@ -1451,7 +1602,6 @@ function App() {
       </div>
     </div>
   );
-
   const renderHorizontalList = (items, title, subtitle) => {
     if (!items || items.length === 0) return null;
     return (
@@ -1498,7 +1648,6 @@ function App() {
       </div>
     );
   };
-
   const renderSkeletonGrid = (count = 10) => (
     <div className="track-grid">
       {Array(count).fill(0).map((_, i) => (
@@ -1512,7 +1661,6 @@ function App() {
       ))}
     </div>
   );
-
   const renderPlaylistView = () => {
     if (!selectedPlaylist) return null;
     return (
@@ -1552,7 +1700,6 @@ function App() {
       </div>
     );
   };
-
   const openArtist = async (artist) => {
     setLoading(true);
     try {
@@ -1568,7 +1715,6 @@ function App() {
       setLoading(false);
     }
   };
-
   const renderArtistCard = (artist) => (
     <div key={artist.id} className="track-card ripple" onClick={() => openArtist(artist)}>
       <div style={{
@@ -1593,7 +1739,6 @@ function App() {
       </div>
     </div>
   );
-
   const renderArtistView = () => {
     if (!selectedArtist) return null;
     const { profile, tracks: artistTracks, likes: artistLikes, playlists: artistPlaylists } = selectedArtist;
@@ -1633,7 +1778,6 @@ function App() {
             </p>
           </div>
         </div>
-
         <div style={{ display: 'flex', gap: '32px', borderBottom: '1px solid var(--border-dim)', marginBottom: '32px' }}>
           <button
             onClick={() => setArtistTab('tracks')}
@@ -1684,8 +1828,6 @@ function App() {
             {t('recent')} ({artistLikes?.length || 0})
           </button>
         </div>
-
-
         <div className="track-grid">
           {artistTab === 'tracks' ? (
             artistTracks.map(track => renderTrackCard(track, artistTracks))
@@ -1706,11 +1848,9 @@ function App() {
       </div >
     );
   };
-
   const renderTrackDetailView = () => {
     if (!viewingTrack) return null;
     const isPlayingThis = currentTrack && String(currentTrack.id) === String(viewingTrack.id);
-
     return (
       <div className="content" style={{ padding: 0 }}>
         <div style={{
@@ -1723,7 +1863,7 @@ function App() {
           color: 'white',
           alignItems: 'flex-start'
         }}>
-          {/* Header Background Image Blur */}
+          { }
           {viewingTrack.artwork_url && (
             <div style={{
               position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -1734,7 +1874,6 @@ function App() {
               zIndex: 0
             }} />
           )}
-
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', zIndex: 1, height: '100%' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '24px', marginBottom: 'auto' }}>
               <button
@@ -1762,8 +1901,7 @@ function App() {
                 </h2>
               </div>
             </div>
-
-            {/* HEADER WAVEFORM (REAL) */}
+            { }
             <div style={{ height: '100px', marginTop: '40px', position: 'relative', overflow: 'hidden' }}>
               <canvas
                 ref={headerCanvasRef}
@@ -1772,8 +1910,7 @@ function App() {
               />
             </div>
           </div>
-
-          {/* ARTWORK */}
+          { }
           <div style={{ width: '300px', height: '300px', flexShrink: 0, zIndex: 1, boxShadow: '0 20px 40px rgba(0,0,0,0.5)' }}>
             <img
               src={viewingTrack.artwork_url ? viewingTrack.artwork_url.replace('large', 't500x500') : placeholderImg}
@@ -1782,7 +1919,6 @@ function App() {
             />
           </div>
         </div>
-
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '40px', padding: '40px' }}>
           <div>
             <div style={{ display: 'flex', gap: '24px', marginBottom: '30px', borderBottom: '1px solid var(--border-dim)' }}>
@@ -1811,7 +1947,6 @@ function App() {
                 Lyrics
               </button>
             </div>
-
             {activeDetailTab === 'info' ? (
               <>
                 <div style={{ display: 'flex', gap: '12px', marginBottom: '30px', borderBottom: '1px solid var(--border-dim)', paddingBottom: '20px' }}>
@@ -1830,13 +1965,11 @@ function App() {
                   <button style={{ background: 'var(--bg-elevated)', color: 'var(--text-main)', border: '1px solid var(--border-dim)', padding: '8px 16px', borderRadius: '4px', cursor: 'not-allowed', opacity: 0.7, fontSize: '13px' }}>Repost</button>
                   <button style={{ background: 'var(--bg-elevated)', color: 'var(--text-main)', border: '1px solid var(--border-dim)', padding: '8px 16px', borderRadius: '4px', cursor: 'not-allowed', opacity: 0.7, fontSize: '13px' }}>Share</button>
                 </div>
-
                 {viewingTrack.description && (
                   <div style={{ marginBottom: '40px', color: 'var(--text-secondary)', lineHeight: '1.6', whiteSpace: 'pre-wrap', fontSize: '14px' }}>
                     {viewingTrack.description}
                   </div>
                 )}
-
                 <h3 style={{ borderBottom: '1px solid var(--border-dim)', paddingBottom: '10px', marginBottom: '20px' }}>
                   {trackComments.length} comments
                 </h3>
@@ -1899,14 +2032,12 @@ function App() {
                     )}
                   </>
                 )}
-
                 <div style={{ marginTop: '40px', fontSize: '12px', color: 'var(--text-secondary)', opacity: 0.5 }}>
                   Lyrics provided by Genius.com
                 </div>
               </div>
             )}
           </div>
-
           <div>
             <div
               onClick={() => { setViewingTrack(null); openArtist(viewingTrack.user); }}
@@ -1925,7 +2056,6 @@ function App() {
                 </div>
               </div>
             </div>
-
             {trackLikers.length > 0 && (
               <div style={{ background: 'var(--bg-elevated)', padding: '20px', borderRadius: '8px' }}>
                 <h3 style={{ margin: '0 0 16px 0', fontSize: '14px', textTransform: 'uppercase', color: 'var(--text-secondary)' }}>Fans</h3>
@@ -1948,12 +2078,110 @@ function App() {
       </div>
     );
   };
-
+  const renderAnalytics = () => {
+    if (!trackStats || trackStats.length === 0) {
+      return (
+        <div style={{ padding: '40px', textAlign: 'center', opacity: 0.6 }}>
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" style={{ marginBottom: '20px' }}>
+            <circle cx="12" cy="12" r="10" />
+            <path d="M12 6v6l4 2" />
+          </svg>
+          <h2>{t('noHistory')}</h2>
+          <p>{t('playMusicToTaste')}</p>
+        </div>
+      );
+    }
+    const trackCounts = {};
+    const artistCounts = {};
+    let totalSeconds = 0;
+    trackStats.forEach(play => {
+      const trackKey = `${play.title} - ${play.artist}`;
+      trackCounts[trackKey] = (trackCounts[trackKey] || 0) + 1;
+      artistCounts[play.artist] = (artistCounts[play.artist] || 0) + 1;
+      totalSeconds += (play.duration || 0);
+    });
+    const topTracks = Object.entries(trackCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    const topArtists = Object.entries(artistCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+    return (
+      <div className="analytics-view" style={{ padding: '0 20px 100px 20px', animation: 'fadeIn 0.5s ease' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '40px' }}>
+          <h1 style={{ fontSize: '42px', fontWeight: 900, margin: 0, letterSpacing: '-1px' }}>{t('statsTitle')}</h1>
+          <button
+            onClick={() => {
+              if (window.confirm(t('clearStats') + '?')) {
+                window.electronAPI.clearStats().then(setTrackStats);
+              }
+            }}
+            className="view-all-btn"
+            style={{ padding: '8px 16px', background: 'var(--bg-hover)', border: '1px solid var(--border-dim)' }}
+          >
+            {t('clearStats')}
+          </button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '24px', marginBottom: '60px' }}>
+          <div style={{ background: 'var(--bg-panel)', padding: '24px', borderRadius: '20px', border: '1px solid var(--border-dim)' }}>
+            <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('totalTime')}</span>
+            <div style={{ fontSize: '32px', fontWeight: 900, margin: '8px 0', color: 'var(--primary)' }}>
+              {Math.floor(totalSeconds / 3600)} {t('hours')} {Math.floor((totalSeconds % 3600) / 60)} {t('minutes')}
+            </div>
+          </div>
+          <div style={{ background: 'var(--bg-panel)', padding: '24px', borderRadius: '20px', border: '1px solid var(--border-dim)' }}>
+            <span style={{ fontSize: '12px', fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{t('tracksPlayed')}</span>
+            <div style={{ fontSize: '32px', fontWeight: 900, margin: '8px 0', color: 'white' }}>
+              {trackStats.length}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '40px' }}>
+          <section>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style={{ opacity: 0.6 }}><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z" /></svg>
+              {t('topTracks')}
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {topTracks.map(([key, count], i) => (
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '16px', background: 'var(--bg-hover)', padding: '12px 16px', borderRadius: '12px' }}>
+                  <span style={{ fontSize: '18px', fontWeight: 900, opacity: 0.2, minWidth: '24px' }}>{i + 1}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: '14px' }}>{key.split(' - ')[0]}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{key.split(' - ')[1]}</div>
+                  </div>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'var(--primary)', background: 'rgba(255,85,0,0.1)', padding: '4px 10px', borderRadius: '20px' }}>
+                    {count} plays
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+          <section>
+            <h3 style={{ fontSize: '20px', fontWeight: 800, marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" style={{ opacity: 0.6 }}><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
+              {t('topArtists')}
+            </h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {topArtists.map(([name, count], i) => (
+                <div key={name} style={{ display: 'flex', alignItems: 'center', gap: '16px', background: 'var(--bg-hover)', padding: '12px 16px', borderRadius: '12px' }}>
+                  <span style={{ fontSize: '18px', fontWeight: 900, opacity: 0.2, minWidth: '24px' }}>{i + 1}</span>
+                  <div style={{ flex: 1, fontWeight: 700, fontSize: '14px' }}>{name}</div>
+                  <div style={{ fontSize: '12px', fontWeight: 800, color: 'white', opacity: 0.6 }}>
+                    {count} plays
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+    );
+  };
   const renderContent = () => {
     if (viewingTrack) return renderTrackDetailView();
     if (selectedPlaylist) return renderPlaylistView();
     if (selectedArtist) return renderArtistView();
-
     switch (activeTab) {
       case 'Home':
         return (
@@ -1962,44 +2190,42 @@ function App() {
               renderSkeletonGrid()
             ) : (searchType === 'all') ? (
               <div className="search-results-combined">
-                {tracks.length > 0 && (
+                {(tracks || []).length > 0 && (
                   <div className="search-section">
                     <h2 style={{ padding: '20px 0 16px 0', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--primary)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-5-9h10v2H7z" /></svg>
                       {t('tracks')}
                     </h2>
                     <div className="track-grid">
-                      {tracks.slice(0, 10).map(track => renderTrackCard(track))}
+                      {(tracks || []).slice(0, 10).map(track => renderTrackCard(track))}
                     </div>
                     {tracks.length > 10 && (
                       <button className="view-all-btn" onClick={() => setSearchType('tracks')}>{t('viewAll')} →</button>
                     )}
                   </div>
                 )}
-
-                {playlists.length > 0 && (
+                {(playlists || []).length > 0 && (
                   <div className="search-section">
                     <h2 style={{ padding: '20px 0 16px 0', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--primary)"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg>
                       {t('playlists')}
                     </h2>
                     <div className="track-grid">
-                      {playlists.slice(0, 5).map(playlist => renderTrackCard(playlist))}
+                      {(playlists || []).slice(0, 5).map(playlist => renderTrackCard(playlist))}
                     </div>
                     {playlists.length > 5 && (
                       <button className="view-all-btn" onClick={() => setSearchType('playlists')}>{t('viewAll')} →</button>
                     )}
                   </div>
                 )}
-
-                {artists.length > 0 && (
+                {(artists || []).length > 0 && (
                   <div className="search-section">
                     <h2 style={{ padding: '20px 0 16px 0', margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--primary)"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
                       {t('artists')}
                     </h2>
                     <div className="track-grid">
-                      {artists.slice(0, 5).map(artist => renderArtistCard(artist))}
+                      {(artists || []).slice(0, 5).map(artist => renderArtistCard(artist))}
                     </div>
                     {artists.length > 5 && (
                       <button className="view-all-btn" onClick={() => setSearchType('artists')}>{t('viewAll')} →</button>
@@ -2033,23 +2259,15 @@ function App() {
           </section>
         );
       case 'Discover':
-        const recentTracks = history.filter(item => item.kind === 'track' || !item.kind).slice(0, 10);
-        const recentPlaylists = history.filter(item => item.kind === 'playlist').slice(0, 10);
-
+        const recentTracks = (history || []).filter(item => item && (item.kind === 'track' || !item.kind)).slice(0, 10);
+        const recentPlaylists = (history || []).filter(item => item && item.kind === 'playlist').slice(0, 10);
         return (
           <div className="content" style={{ padding: '40px', color: 'var(--text-main)' }}>
             <h1 style={{ marginBottom: '30px', fontSize: '32px', fontWeight: 900 }}>{t('discover')}</h1>
-
-
             {recommendations.length > 0 && renderHorizontalList(recommendations, t('forYou'), t('basedOnTaste'))}
-
-
-            {charts.length > 0 && renderHorizontalList(charts.slice(0, 20), t('globalTop50'), t('trendingNow'))}
-
-
+            {(charts || []).length > 0 && renderHorizontalList(charts.slice(0, 20), t('globalTop50'), t('trendingNow'))}
             {recentTracks.length > 0 && renderHorizontalList(recentTracks, t('recentlyPlayed'))}
             {recentPlaylists.length > 0 && renderHorizontalList(recentPlaylists, t('recentPlaylists'))}
-
             {recommendations.length === 0 && !loading && (
               <div style={{ opacity: 0.5, padding: '40px', textAlign: 'center', background: 'var(--bg-panel)', borderRadius: '20px' }}>
                 <h3>{t('noRecommendations')}</h3>
@@ -2059,13 +2277,11 @@ function App() {
           </div>
         );
       case 'Library':
-        const displayTracks = filteredLikedTracks.slice(0, libraryDisplayLimit);
-
+        const displayTracks = (filteredLikedTracks || []).slice(0, libraryDisplayLimit);
         return (
           <section
             className="content"
             onScroll={(e) => {
-              // Infinite scroll: load more when near bottom
               if (e.target.scrollHeight - e.target.scrollTop < e.target.clientHeight + 400) {
                 if (libraryDisplayLimit < filteredLikedTracks.length) {
                   setLibraryDisplayLimit(prev => Math.min(prev + 50, filteredLikedTracks.length));
@@ -2124,11 +2340,16 @@ function App() {
             )}
           </section>
         );
+      case 'Analytics':
+        return (
+          <section className="content">
+            {renderAnalytics()}
+          </section>
+        );
       default:
         return null;
     }
   };
-
   const renderSettingsModal = () => {
     if (!settingsOpen) return null;
     return (
@@ -2140,12 +2361,11 @@ function App() {
           </div>
           <div className="modal-content">
             <div className="settings-grid">
-              {/* LEFT COLUMN: Appearance & Account */}
+              { }
               <div className="settings-col">
                 <div className="setting-section-header" style={{ marginBottom: '10px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
                   Appearance
                 </div>
-
                 <div className="setting-item" style={{ alignItems: 'flex-start', flexDirection: 'column' }}>
                   <div>
                     <h3>{t('theme')}</h3>
@@ -2168,19 +2388,24 @@ function App() {
                     <option value="Eclipse">{t('themeEclipse')}</option>
                     <option value="Custom">{t('themeCustom')}</option>
                   </select>
-
                   {settings.theme === 'Custom' && (
                     <div className="custom-theme-editor" style={{ width: '100%', background: 'var(--bg-elevated)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-dim)' }}>
                       <h4 style={{ margin: '0 0 16px 0', fontSize: '14px', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Theme Editor</h4>
-
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
                         {[
-                          { label: 'Primary Color', key: 'primary' },
+                          { label: 'Primary', key: 'primary' },
                           { label: 'Background', key: 'bgDark' },
                           { label: 'Panel BG', key: 'bgPanel' },
                           { label: 'Element BG', key: 'bgElevated' },
+                          { label: 'Hover BG', key: 'bgHover' },
                           { label: 'Text Main', key: 'textMain' },
                           { label: 'Text Dim', key: 'textSecondary' },
+                          { label: 'Text Muted', key: 'textMuted' },
+                          { label: 'Border', key: 'borderDim' },
+                          { label: 'Logo Text', key: 'logoColor' },
+                          { label: 'Visualizer', key: 'visColor' },
+                          { label: 'Glass BG', key: 'glassBg' },
+                          { label: 'Glass Border', key: 'glassBorder' },
                         ].map(field => (
                           <div key={field.key} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                             <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{field.label}</label>
@@ -2209,7 +2434,6 @@ function App() {
                           </div>
                         ))}
                       </div>
-
                       <div style={{ marginBottom: '20px' }}>
                         <label style={{ fontSize: '11px', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>{t('placeholderUrl')}</label>
                         <div style={{ display: 'flex', gap: '8px' }}>
@@ -2239,8 +2463,7 @@ function App() {
                           </button>
                         </div>
                       </div>
-
-                      {/* Export / Import */}
+                      { }
                       <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
                         <button
                           onClick={() => {
@@ -2288,8 +2511,7 @@ function App() {
                           Reset Default
                         </button>
                       </div>
-
-                      {/* Background Image Section */}
+                      { }
                       <div style={{ borderTop: '1px solid var(--border-dim)', paddingTop: '20px' }}>
                         <button
                           onClick={handleCustomBackground}
@@ -2325,8 +2547,7 @@ function App() {
                           </select>
                         </div>
                       </div>
-
-                      {/* Card Size Section */}
+                      { }
                       <div style={{ borderTop: '1px solid var(--border-dim)', paddingTop: '20px', marginTop: '20px' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                           <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Card Size</label>
@@ -2345,11 +2566,9 @@ function App() {
                           style={{ width: '100%', accentColor: 'var(--primary)' }}
                         />
                       </div>
-
                     </div>
                   )}
                 </div>
-
                 <div className="setting-item">
                   <div className="setting-info">
                     <h3>{t('visualizer')}</h3>
@@ -2367,7 +2586,50 @@ function App() {
                     <option value="Frequency">Frequency (Background)</option>
                   </select>
                 </div>
-
+                <div className="setting-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div className="setting-info">
+                      <h3>{t('visPos')}</h3>
+                      <p>{t('visualizerDesc')}</p>
+                    </div>
+                    <select
+                      value={settings.visualizerPosition || 'Center'}
+                      onChange={(e) => setSettings({ ...settings, visualizerPosition: e.target.value })}
+                      style={{ width: '120px' }}
+                    >
+                      <option value="Center">{t('visPosCenter')}</option>
+                      <option value="Left">{t('visPosLeft')}</option>
+                      <option value="Right">{t('visPosRight')}</option>
+                      <option value="Custom">{t('visPosCustom')}</option>
+                    </select>
+                  </div>
+                  {settings.visualizerPosition === 'Custom' && (
+                    <div style={{ background: 'var(--bg-elevated)', padding: '16px', borderRadius: '12px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {[
+                        { label: t('visPosX'), key: 'visCustomX', min: 0, max: 100, step: 1, unit: '%' },
+                        { label: t('visPosY'), key: 'visCustomY', min: 0, max: 100, step: 1, unit: '%' },
+                        { label: t('visWidth'), key: 'visCustomWidth', min: 50, max: 1200, step: 10, unit: 'px' },
+                        { label: t('visHeight'), key: 'visCustomHeight', min: 20, max: 400, step: 5, unit: 'px' },
+                      ].map(slider => (
+                        <div key={slider.key}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                            <span>{slider.label}</span>
+                            <span>{settings[slider.key]}{slider.unit}</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={slider.min}
+                            max={slider.max}
+                            step={slider.step}
+                            value={settings[slider.key]}
+                            onChange={(e) => setSettings({ ...settings, [slider.key]: parseInt(e.target.value) })}
+                            style={{ width: '100%', accentColor: 'var(--primary)' }}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <div className="setting-item">
                   <div className="setting-info">
                     <h3>{t('sidebarMode')}</h3>
@@ -2382,7 +2644,6 @@ function App() {
                     <option value="Slim">{t('sidebarSlim')}</option>
                   </select>
                 </div>
-
                 <div className="setting-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px', background: 'rgba(255,255,255,0.03)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-dim)' }}>
                   <div className="setting-info">
                     <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -2391,13 +2652,11 @@ function App() {
                     </h3>
                     <p>{t('customFontDesc')}</p>
                   </div>
-
                   {settings.customFont && (
                     <div style={{ fontSize: '11px', color: 'var(--primary)', background: 'rgba(255,85,0,0.1)', padding: '6px 10px', borderRadius: '6px', width: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       Active: {decodeURIComponent(settings.customFont.split('/').pop())}
                     </div>
                   )}
-
                   <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
                     <button
                       onClick={handleSelectFont}
@@ -2440,7 +2699,6 @@ function App() {
                     )}
                   </div>
                 </div>
-
                 <div className="setting-item">
                   <div className="setting-info">
                     <h3>{t('dynamicBg')}</h3>
@@ -2453,7 +2711,6 @@ function App() {
                     <div className="toggle-thumb" />
                   </div>
                 </div>
-
                 <div className="setting-item">
                   <div className="setting-info">
                     <h3>{t('language')}</h3>
@@ -2467,11 +2724,9 @@ function App() {
                     <option value="en">English</option>
                   </select>
                 </div>
-
                 <div className="setting-section-header" style={{ marginBottom: '10px', marginTop: '20px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
                   Account
                 </div>
-
                 <div className="setting-item sc-connect-section" style={{
                   flexDirection: 'column',
                   alignItems: 'flex-start',
@@ -2525,7 +2780,6 @@ function App() {
                     </button>
                   )}
                 </div>
-
                 <div className="setting-item sc-import-section" style={{
                   flexDirection: 'column',
                   alignItems: 'flex-start',
@@ -2573,18 +2827,14 @@ function App() {
                     </button>
                   </div>
                 </div>
-
-
                 <div className="setting-section-header" style={{ marginBottom: '10px', marginTop: '24px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
                   {t('discordRpc')}
                 </div>
-
                 <div className="setting-item" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '12px' }}>
                   <div className="setting-info" style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
                     <h3 style={{ margin: 0 }}>{t('discordRpc')}</h3>
                     <p style={{ margin: '4px 0 0 0' }}>{t('discordRpcDesc')}</p>
                   </div>
-
                   <div style={{ width: '100%' }}>
                     <label style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>{t('discordClientId')}</label>
                     <input
@@ -2608,15 +2858,27 @@ function App() {
                     </p>
                   </div>
                 </div>
-
               </div>
-
-              {/* RIGHT COLUMN: Playback & EQ */}
+              { }
               <div className="settings-col">
                 <div className="setting-section-header" style={{ marginBottom: '10px', color: 'var(--text-muted)', fontSize: '12px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '1px' }}>
                   Playback & Audio
                 </div>
-
+                <div className="setting-item">
+                  <div className="setting-info" style={{ flex: 1, paddingRight: '20px' }}>
+                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
+                      {t('flowMode')}
+                    </h3>
+                    <p>{t('flowModeDesc')}</p>
+                  </div>
+                  <div
+                    className={`toggle-switch ${settings.flowMode ? 'active' : ''}`}
+                    onClick={() => setSettings({ ...settings, flowMode: !settings.flowMode })}
+                  >
+                    <div className="toggle-thumb"></div>
+                  </div>
+                </div>
                 <div className="setting-item">
                   <div className="setting-info">
                     <h3>{t('audioQuality')}</h3>
@@ -2631,7 +2893,6 @@ function App() {
                     <option value="Extreme">{t('extreme')}</option>
                   </select>
                 </div>
-
                 <div className="setting-item" style={{ flexDirection: 'column', alignItems: 'stretch' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <div className="setting-info">
@@ -2645,7 +2906,6 @@ function App() {
                       <div className="toggle-thumb"></div>
                     </div>
                   </div>
-
                   {settings.crossfade && (
                     <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-dim)', paddingTop: '12px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -2666,9 +2926,6 @@ function App() {
                     </div>
                   )}
                 </div>
-
-
-
                 <div className="eq-section" style={{ marginTop: '20px' }}>
                   <div className="setting-info" style={{ marginBottom: '16px' }}>
                     <h3>{t('eq')}</h3>
@@ -2695,7 +2952,6 @@ function App() {
                       </div>
                     ))}
                   </div>
-
                   <div className="eq-presets" style={{
                     marginTop: '16px',
                     display: 'flex',
@@ -2733,7 +2989,6 @@ function App() {
                     ))}
                   </div>
                 </div>
-
                 <div className="setting-item" style={{ borderTop: '1px solid var(--border-dim)', paddingTop: '20px', marginTop: '10px' }}>
                   <div className="setting-info">
                     <h3 style={{ color: '#ff4444' }}>{t('dangerZone')}</h3>
@@ -2741,7 +2996,7 @@ function App() {
                   </div>
                   <button
                     onClick={() => {
-                      if (window.confirm('Are you sure you want to clear all liked tracks?')) {
+                      if (window.confirm(t('clearLikes') + '?')) {
                         window.electronAPI.clearLikes();
                         setLikedTracks([]);
                       }
@@ -2757,21 +3012,63 @@ function App() {
                       fontSize: '13px',
                       transition: 'all 0.2s'
                     }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.background = '#ff4444';
-                      e.currentTarget.style.color = 'white';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.background = 'rgba(255, 68, 68, 0.1)';
-                      e.currentTarget.style.color = '#ff4444';
-                    }}
                   >
                     {t('clearLikes')}
                   </button>
                 </div>
+                <div className="setting-item">
+                  <div className="setting-info">
+                    <h3 style={{ color: 'var(--text-main)', fontSize: '14px' }}>{t('clearHistory')}</h3>
+                    <p>{t('clearHistoryDesc')}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(t('clearHistory') + '?')) {
+                        window.electronAPI.clearHistory();
+                        setHistory([]);
+                      }
+                    }}
+                    style={{
+                      background: 'var(--bg-hover)',
+                      color: 'var(--text-main)',
+                      border: '1px solid var(--border-dim)',
+                      borderRadius: '8px',
+                      padding: '8px 16px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontSize: '13px'
+                    }}
+                  >
+                    {t('clearHistory')}
+                  </button>
+                </div>
+                <div className="setting-item">
+                  <div className="setting-info">
+                    <h3 style={{ color: 'var(--text-main)', fontSize: '14px' }}>{t('clearStats')}</h3>
+                    <p>{t('clearStatsDesc')}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (window.confirm(t('clearStats') + '?')) {
+                        window.electronAPI.clearStats().then(setTrackStats);
+                      }
+                    }}
+                    style={{
+                      background: 'var(--bg-hover)',
+                      color: 'var(--text-main)',
+                      border: '1px solid var(--border-dim)',
+                      borderRadius: '8px',
+                      padding: '8px 16px',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      fontSize: '13px'
+                    }}
+                  >
+                    {t('clearStats')}
+                  </button>
+                </div>
               </div>
             </div>
-
             <div className="modal-footer">
               <button className="save-btn" onClick={() => setSettingsOpen(false)}>{t('close')}</button>
             </div>
@@ -2804,7 +3101,6 @@ function App() {
             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z" /></svg>
           <h1 style={{ margin: '0 0 8px 0', fontSize: '24px' }}>{t('loginWelcome')}</h1>
           <p style={{ color: 'var(--text-secondary)', marginBottom: '32px' }}>{t('loginSubtitle')}</p>
-
           <button
             onClick={handleSCConnect}
             disabled={isLoggingIn}
@@ -2835,7 +3131,6 @@ function App() {
               </>
             )}
           </button>
-
           <button
             onClick={() => setIsGuestMode(true)}
             style={{
@@ -2859,7 +3154,6 @@ function App() {
       </div>
     );
   };
-
   const renderMiniPlayer = () => {
     return (
       <div className="mini-player" style={{
@@ -2868,68 +3162,79 @@ function App() {
         background: 'var(--bg-dark)',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
         position: 'relative',
         overflow: 'hidden',
-        border: '1px solid var(--border-dim)',
         userSelect: 'none'
       }}>
+        { }
+        {currentTrack && (
+          <div style={{
+            position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+            backgroundImage: `url(${currentTrack.artwork_url?.replace('-large', '-t500x500') || ''})`,
+            backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(20px) brightness(0.4)', zIndex: 0
+          }} />
+        )}
+        { }
         <div className="title-bar" style={{
           position: 'absolute',
           top: 0,
           width: '100%',
-          background: 'transparent',
-          borderBottom: 'none',
-          height: '32px'
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.6), transparent)',
+          height: '40px',
+          zIndex: 10,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          paddingRight: '10px',
+          WebkitAppRegion: 'drag',
+          border: 'none'
         }}>
-          <div className="window-controls" style={{ marginLeft: 'auto' }}>
-            <button className="control-btn" onClick={() => window.electronAPI.toggleMiniPlayer()} title="Exit Mini-Player">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+          <div className="window-controls" style={{ display: 'flex', gap: '8px', WebkitAppRegion: 'no-drag' }}>
+            <button className="control-btn" onClick={() => window.electronAPI.toggleMiniPlayer()} title="Exit Mini-Player" style={{ color: 'white', opacity: 0.8, cursor: 'pointer', background: 'none', border: 'none' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
             </button>
-            <button className="control-btn close" onClick={() => window.electronAPI.close()}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            <button className="control-btn close" onClick={() => window.electronAPI.close()} style={{ color: 'white', opacity: 0.8, cursor: 'pointer', background: 'none', border: 'none' }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12" /></svg>
             </button>
           </div>
         </div>
-
+        { }
         {currentTrack ? (
-          <>
-            <img
-              src={currentTrack.artwork_url?.replace('-large', '-t500x500') || 'https://a-v2.sndcdn.com/assets/images/default_artwork_large-d36391.png'}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', position: 'absolute', opacity: 0.15, filter: 'blur(30px)' }}
-              alt=""
-            />
-            <div style={{ zIndex: 1, textAlign: 'center', padding: '10px' }}>
+          <div style={{ zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', width: '100%', padding: '20px', boxSizing: 'border-box' }}>
+            { }
+            <div style={{ position: 'relative', marginBottom: '16px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)', borderRadius: '12px', overflow: 'hidden' }}>
               <img
                 src={currentTrack.artwork_url?.replace('-large', '-t500x500') || 'https://a-v2.sndcdn.com/assets/images/default_artwork_large-d36391.png'}
-                style={{ width: '160px', height: '160px', borderRadius: '12px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)', marginBottom: '15px', objectFit: 'cover' }}
+                style={{ width: '140px', height: '140px', objectFit: 'cover', display: 'block' }}
                 alt=""
               />
-              <div style={{ padding: '0 15px' }}>
-                <h3 style={{ fontSize: '14px', margin: '0 0 2px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '280px', color: 'white' }}>{currentTrack.title}</h3>
-                <p style={{ fontSize: '12px', color: 'var(--text-secondary)', margin: 0, opacity: 0.8 }}>{currentTrack.user?.username}</p>
-              </div>
-
-              <div style={{ display: 'flex', gap: '20px', marginTop: '20px', justifyContent: 'center', alignItems: 'center' }}>
-                <button className="icon-btn" style={{ padding: '8px' }} onClick={playPrevious}><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" /></svg></button>
-                <button className="icon-btn" onClick={togglePlay} style={{ background: 'var(--primary)', borderRadius: '50%', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', border: 'none', boxShadow: '0 0 15px var(--primary-glow)' }}>
-                  {isPlaying ? <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg> : <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>}
-                </button>
-                <button className="icon-btn" style={{ padding: '8px' }} onClick={playNext}><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" /></svg></button>
-              </div>
             </div>
-          </>
+            { }
+            <div style={{ textAlign: 'center', width: '100%', marginBottom: '16px', padding: '0 10px' }}>
+              <h3 style={{ fontSize: '15px', color: 'white', fontWeight: 700, margin: '0 0 4px 0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentTrack.title}</h3>
+              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.7)', margin: 0 }}>{currentTrack.user?.username}</p>
+            </div>
+            { }
+            <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+              <button className="icon-btn" onClick={playPrevious} style={{ color: 'white', opacity: 0.9, cursor: 'pointer', background: 'none', border: 'none' }}><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" /></svg></button>
+              <button className="icon-btn" onClick={togglePlay} style={{
+                background: 'white', color: 'black', borderRadius: '50%', width: '48px', height: '48px',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.3)', transform: 'scale(1.1)',
+                cursor: 'pointer', border: 'none'
+              }}>
+                {isPlaying ? <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg> : <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>}
+              </button>
+              <button className="icon-btn" onClick={playNext} style={{ color: 'white', opacity: 0.9, cursor: 'pointer', background: 'none', border: 'none' }}><svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" /></svg></button>
+            </div>
+          </div>
         ) : (
-          <div style={{ textAlign: 'center', padding: '20px', opacity: 0.6 }}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom: '10px' }}><circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" /></svg>
-            <p style={{ fontSize: '13px' }}>{t('playMusicToTaste')}</p>
+          <div style={{ zIndex: 1, color: 'rgba(255,255,255,0.5)', textAlign: 'center' }}>
+            <p>No track playing</p>
           </div>
         )}
       </div>
     );
   };
-
   const renderTitleBar = () => {
     return (
       <div className="title-bar">
@@ -2954,7 +3259,6 @@ function App() {
       </div>
     );
   };
-
   if (isMini) {
     return (
       <div className="App" data-theme={settings.theme}>
@@ -2962,7 +3266,6 @@ function App() {
       </div>
     );
   }
-
   if (dataLoaded && !scUser && !isGuestMode) {
     return (
       <div className="App" data-theme={settings.theme}>
@@ -2971,21 +3274,25 @@ function App() {
       </div>
     );
   }
-
   return (
     <div
       className="App"
       data-theme={settings.theme}
       data-vibe={settings.dynamicBg}
-      style={settings.theme === 'Custom' ? {
-        '--primary': settings.customTheme?.primary || settings.customThemeColor || '#ff5500',
-        '--bg-dark': settings.customTheme?.bgDark || '#000000',
-        '--bg-panel': settings.customTheme?.bgPanel || 'rgba(18, 18, 20, 0.4)',
-        '--bg-elevated': settings.customTheme?.bgElevated || 'rgba(255, 255, 255, 0.05)',
+      style={settings.theme === 'Custom' || settings.dynamicBg === true ? {
+        '--primary': (settings.dynamicBg && vibeColors) ? vibeColors[0] : (settings.customTheme?.primary || settings.customThemeColor || '#ff5500'),
+        '--bg-dark': (settings.dynamicBg && vibeColors) ? '#050505' : (settings.customTheme?.bgDark || '#000000'),
+        '--bg-panel': (settings.dynamicBg && vibeColors) ? `color-mix(in srgb, ${vibeColors[0]} 5%, #121214e6)` : (settings.customTheme?.bgPanel || 'rgba(18, 18, 20, 0.4)'),
+        '--bg-elevated': (settings.dynamicBg && vibeColors) ? `color-mix(in srgb, ${vibeColors[0]} 10%, rgba(255, 255, 255, 0.05))` : (settings.customTheme?.bgElevated || 'rgba(255, 255, 255, 0.05)'),
+        '--bg-hover': (settings.dynamicBg && vibeColors) ? `color-mix(in srgb, ${vibeColors[0]} 15%, rgba(255, 255, 255, 0.1))` : (settings.customTheme?.bgHover || 'rgba(255, 255, 255, 0.1)'),
         '--text-main': settings.customTheme?.textMain || '#ffffff',
         '--text-secondary': settings.customTheme?.textSecondary || 'rgba(255, 255, 255, 0.85)',
-
-        // Background Image Handling
+        '--text-muted': settings.customTheme?.textMuted || 'rgba(255, 255, 255, 0.5)',
+        '--border-dim': (settings.dynamicBg && vibeColors) ? `color-mix(in srgb, ${vibeColors[0]} 20%, rgba(255, 255, 255, 0.1))` : (settings.customTheme?.borderDim || 'rgba(255, 255, 255, 0.15)'),
+        '--glass-bg': settings.customTheme?.glassBg || 'rgba(0, 0, 0, 0.4)',
+        '--glass-border': settings.customTheme?.glassBorder || 'rgba(255, 255, 255, 0.1)',
+        '--logo-color': (settings.dynamicBg && vibeColors) ? vibeColors[0] : (settings.customTheme?.logoColor || '#ff5500'),
+        '--vis-color': (settings.dynamicBg && vibeColors) ? vibeColors[0] : (settings.customTheme?.visColor || '#ff5500'),
         '--bg-image': settings.backgroundImage && !settings.backgroundImage.match(/\.(mp4|webm)$/i) ? `url("${settings.backgroundImage}")` : 'none',
         backgroundSize: settings.backgroundFit || 'cover',
         backgroundPosition: 'center',
@@ -2996,7 +3303,7 @@ function App() {
           : 'none'
       } : {}}
     >
-      {/* Dynamic Vibe Background */}
+      { }
       {settings.dynamicBg && vibeColors && (
         <div
           className="dynamic-vibe-bg"
@@ -3017,8 +3324,7 @@ function App() {
           }}
         />
       )}
-
-      {/* Background Visualizer Canvas */}
+      { }
       <canvas
         ref={backgroundCanvasRef}
         style={{
@@ -3032,7 +3338,6 @@ function App() {
           opacity: settings.visualizerStyle === 'Particles' ? 1 : 0.6
         }}
       />
-
       {settings.theme === 'Custom' && settings.backgroundImage && settings.backgroundImage.match(/\.(mp4|webm)$/i) && (
         <div className="video-bg-container" style={{
           position: 'absolute',
@@ -3072,8 +3377,6 @@ function App() {
           />
         </div>
       )}
-
-
       {renderTitleBar()}
       <div className={`main-container ${settings.sidebarMode === 'Compact' ? 'compact-sidebar' : ''}`} style={{ position: 'relative', zIndex: 10 }}>
         <aside className={`sidebar ${settings.sidebarMode === 'Compact' ? 'compact' : settings.sidebarMode === 'Slim' ? 'slim' : ''} ${sidebarOpen ? 'open' : ''}`}>
@@ -3092,7 +3395,10 @@ function App() {
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-1 9H9V9h10v2zm-4 4H9v-2h6v2zm4-8H9V5h10v2z" /></svg> <span>{t('library')}</span>
               </li>
               <li className={activeTab === 'Playlists' ? 'active' : ''} onClick={() => { setActiveTab('Playlists'); setSelectedPlaylist(null); setSelectedArtist(null); setViewingTrack(null); }}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" /></svg> <span>{t('playlists')}</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M4 10h12v2H4zm0-4h12v2H4zm0 8h8v2H4zm10 0v6l5-3-5-3z" /></svg> <span>{t('playlists')}</span>
+              </li>
+              <li className={activeTab === 'Analytics' ? 'active' : ''} onClick={() => { setActiveTab('Analytics'); setSelectedPlaylist(null); setSelectedArtist(null); setViewingTrack(null); }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M11 20H4a1 1 0 01-1-1V5a1 1 0 011-1h7v16zm2 0h7a1 1 0 001-1V5a1 1 0 00-1-1h-7v16zm-7-7h2v2H6v-2zm0-4h2v2H6V9zm11 4h2v2h-2v-2zm0-4h2v2h-2V9z" /></svg> <span>{t('analytics')}</span>
               </li>
             </ul>
           </nav>
@@ -3103,7 +3409,7 @@ function App() {
         >
           <header className="App-header">
             <h1>SoundCloud</h1>
-            {activeTab === 'Home' && (
+            {(activeTab === 'Home' || activeTab === 'Discover') && (
               <div className="search-bar">
                 <input
                   type="text"
@@ -3119,7 +3425,7 @@ function App() {
           {renderContent()}
           {currentTrack && (
             <footer className={`player ${settings.sidebarMode === 'Compact' ? 'full-width' : settings.sidebarMode === 'Slim' ? 'slim-sidebar' : ''}`}>
-              <div className="play-controls">
+              <div className="play-controls" style={{ flexShrink: 0 }}>
                 <button className="icon-btn" onClick={playPrevious}>
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z" /></svg>
                 </button>
@@ -3134,29 +3440,30 @@ function App() {
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="m6 18 8.5-6L6 6zM16 6v12h2V6z" /></svg>
                 </button>
               </div>
-
               <canvas
                 ref={canvasRef}
                 width={300}
                 height={60}
                 style={{
                   position: 'absolute',
-                  left: '50%',
-                  top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '400px',
-                  height: '80px',
+                  left: settings.visualizerPosition === 'Left' ? '0' : settings.visualizerPosition === 'Right' ? 'auto' : settings.visualizerPosition === 'Custom' ? `${settings.visCustomX}%` : '50%',
+                  right: settings.visualizerPosition === 'Right' ? '0' : 'auto',
+                  top: settings.visualizerPosition === 'Custom' ? `${settings.visCustomY}%` : '50%',
+                  transform: settings.visualizerPosition === 'Custom' ? 'translate(-50%, -50%)' : settings.visualizerPosition === 'Center' ? 'translate(-50%, -50%)' : 'translate(0, -50%)',
+                  width: settings.visualizerPosition === 'Custom' ? `${settings.visCustomWidth}px` : '400px',
+                  height: settings.visualizerPosition === 'Custom' ? `${settings.visCustomHeight}px` : '80px',
                   zIndex: -1,
                   opacity: 0.3,
-                  pointerEvents: 'none'
+                  pointerEvents: 'none',
+                  maskImage: settings.visualizerPosition === 'Custom' ? 'none' : 'linear-gradient(to right, transparent, black 20%, black 80%, transparent)',
+                  WebkitMaskImage: settings.visualizerPosition === 'Custom' ? 'none' : 'linear-gradient(to right, transparent, black 20%, black 80%, transparent)'
                 }}
               />
-
               <div className="player-meta-minimal" onClick={() => setViewingTrack(currentTrack)} style={{ cursor: 'pointer' }}>
                 <span className="player-title-minimal" title="View Track Details">{currentTrack.title}</span>
                 <span className="player-artist-minimal">{currentTrack.user?.username || 'Unknown Artist'}</span>
-                <div className="progress-container" style={{ display: 'flex', alignItems: 'center', width: '100%', marginTop: '6px' }}>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', minWidth: '45px' }}>{formatTime(seek)}</span>
+                <div className="progress-container" style={{ display: 'flex', alignItems: 'center', width: '100%', gap: '8px', marginTop: '6px' }}>
+                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)', minWidth: '38px', flexShrink: 0, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{formatTime(seek)}</span>
                   <input
                     type="range"
                     min={0}
@@ -3167,15 +3474,14 @@ function App() {
                     className="seek-slider"
                     style={{
                       flex: 1,
-                      margin: '0 12px',
+                      margin: 0,
                       background: `linear-gradient(to right, var(--primary) ${(seek / duration) * 100}%, var(--bg-hover) ${(seek / duration) * 100}%)`,
                     }}
                   />
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)', minWidth: '45px', textAlign: 'right' }}>{formatTime(duration)}</span>
+                  <span style={{ fontSize: '10px', color: 'var(--text-secondary)', minWidth: '38px', textAlign: 'right', flexShrink: 0, whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}>{formatTime(duration)}</span>
                 </div>
               </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                 <button
                   className="icon-btn"
                   onClick={toggleShuffle}
@@ -3185,7 +3491,6 @@ function App() {
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="16 3 21 3 21 8"></polyline>
                     <line x1="4" y1="20" x2="21" y2="3"></line>
-                    <polyline points="21 16 21 21 16 21"></polyline>
                     <line x1="15" y1="15" x2="21" y2="21"></line>
                     <line x1="4" y1="4" x2="9" y2="9"></line>
                   </svg>
@@ -3198,7 +3503,6 @@ function App() {
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill={isLiked(currentTrack) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" /></svg>
                 </button>
-
                 <button
                   className="icon-btn"
                   onClick={toggleLoop}
@@ -3212,7 +3516,59 @@ function App() {
                     <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
                   </svg>
                 </button>
-
+                <div className="rate-menu-container">
+                  <button
+                    className="icon-btn"
+                    onClick={(e) => { e.stopPropagation(); setTrackMenuOpen(!trackMenuOpen); }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    title="Track Options"
+                    style={{ color: trackMenuOpen || playbackRate !== 1 ? 'var(--primary)' : 'var(--text-secondary)' }}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    {playbackRate !== 1 && <span style={{ position: 'absolute', top: '-4px', right: '-4px', background: 'var(--primary)', color: 'white', fontSize: '8px', padding: '1px 3px', borderRadius: '4px', fontWeight: 900 }}>{playbackRate}x</span>}
+                  </button>
+                  {trackMenuOpen && (
+                    <div className="rate-menu" style={{ right: '-40px', minWidth: '180px' }} onClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+                      <button onClick={(e) => { handleStartStation(e, currentTrack); setTrackMenuOpen(false); }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" /></svg>
+                        <span>{t('startStation')}</span>
+                      </button>
+                      <button onClick={(e) => { handleShare(e, currentTrack); setTrackMenuOpen(false); }}>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+                        <span>{t('shareCard')}</span>
+                      </button>
+                      <div className="rate-menu-divider" />
+                      <div className="rate-slider-container">
+                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                          <span>{t('playbackSpeed')}</span>
+                          <span style={{ color: 'var(--primary)' }}>{playbackRate}x</span>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginBottom: '10px' }}>
+                          {[0.5, 0.75, 1, 1.25, 1.5, 2].map(rate => (
+                            <button
+                              key={rate}
+                              className={playbackRate === rate ? 'active' : ''}
+                              onClick={() => { handleRateChange(rate); setTrackMenuOpen(false); }}
+                              style={{ flex: '1', padding: '4px 2px', fontSize: '11px', justifyContent: 'center', minWidth: '32px' }}
+                            >
+                              {rate}x
+                            </button>
+                          ))}
+                        </div>
+                        <input
+                          type="range"
+                          min="0.5"
+                          max="2.0"
+                          step="0.05"
+                          value={playbackRate}
+                          onChange={(e) => handleRateChange(parseFloat(e.target.value))}
+                          className="rate-slider"
+                          style={{ width: '100%' }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
                 <div className="volume-section">
                   <button className="icon-btn" onClick={() => setVolume(volume === 0 ? 1 : 0)} style={{ padding: '8px', color: volume === 0 ? 'var(--text-muted)' : 'var(--text-secondary)' }}>
                     {volume === 0 ? (
@@ -3236,7 +3592,6 @@ function App() {
                     }}
                   />
                 </div>
-
                 <button className="icon-btn" style={{ marginLeft: '12px' }} onClick={() => {
                   if (sound) sound.unload();
                   setCurrentTrack(null);
@@ -3248,9 +3603,49 @@ function App() {
           )}
         </main>
       </div>
+      {updateStatus && (
+        <div className="update-toast" style={{ bottom: currentTrack ? '110px' : '24px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+            <div>
+              <h4 style={{ margin: 0, fontSize: '14px', color: 'var(--text-main)', fontWeight: 800 }}>
+                {updateStatus === 'downloaded' ? t('updateDownloaded') : t('updateAvailable')}
+              </h4>
+              <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                Version {updateVersion}
+              </p>
+            </div>
+            <button
+              onClick={() => setUpdateStatus(null)}
+              style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M18 6 6 18M6 6l12 12" /></svg>
+            </button>
+          </div>
+          {updateStatus === 'downloading' ? (
+            <div>
+              <div style={{ width: '100%', height: '6px', background: 'var(--bg-hover)', borderRadius: '3px', overflow: 'hidden', marginBottom: '8px' }}>
+                <div style={{ width: `${updateProgress}%`, height: '100%', background: 'var(--primary)', transition: 'width 0.3s' }} />
+              </div>
+              <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)', textAlign: 'right' }}>{updateProgress}%</p>
+            </div>
+          ) : updateStatus === 'downloaded' ? (
+            <button
+              onClick={() => window.electronAPI.installUpdate()}
+              style={{
+                width: '100%', padding: '10px', background: 'var(--primary)', border: 'none',
+                borderRadius: '8px', color: 'white', fontWeight: 800, cursor: 'pointer',
+                fontSize: '13px', boxShadow: '0 4px 12px rgba(255,85,0,0.3)'
+              }}
+            >
+              {t('updateInstall')}
+            </button>
+          ) : (
+            <p style={{ margin: 0, fontSize: '12px', color: 'var(--text-secondary)' }}>{t('updateDownloading')}</p>
+          )}
+        </div>
+      )}
       {renderSettingsModal()}
     </div>
   );
 }
-
 export default App;

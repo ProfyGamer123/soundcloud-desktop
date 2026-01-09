@@ -6,12 +6,6 @@ if (process.platform === 'win32') {
   app.setAppUserModelId('com.soundcloud.desktop');
 }
 
-const { autoUpdater } = require('electron-updater');
-const log = require('electron-log');
-
-
-autoUpdater.logger = log;
-autoUpdater.logger.transports.file.level = 'info';
 let tray = null;
 let isQuitting = false;
 let mainWindow;
@@ -22,27 +16,87 @@ const net = require('net');
 const DiscordRPC = require('discord-rpc');
 let rpc;
 let rpcClientId = '1458763452041662618'; // Public Discord Application ID (Safe to share)
-const md5 = require('md5');
+const CURRENT_VERSION = app.getVersion();
+const REPO_OWNER = 'dissstructed1337';
+const REPO_NAME = 'soundcloud-desktop';
+let updateDownloadedPath = null;
 
-const LASTFM_API_KEY = 'YOUR_LASTFM_API_KEY';
-const LASTFM_SHARED_SECRET = 'YOUR_LASTFM_SHARED_SECRET';
-const LASTFM_API_ROOT = 'http://ws.audioscrobbler.com/2.0/';
+const DATA_PATH = app.getPath('userData');
+const LIKES_FILE = path.join(DATA_PATH, 'likes.json');
+const HISTORY_FILE = path.join(DATA_PATH, 'history.json');
+const STATS_FILE = path.join(DATA_PATH, 'stats.json');
+const SETTINGS_FILE = path.join(DATA_PATH, 'settings.json');
+const AUTH_FILE = path.join(DATA_PATH, 'auth.json');
+const PLAYLISTS_FILE = path.join(DATA_PATH, 'playlists.json');
+const AUDIO_CACHE_DIR = path.join(DATA_PATH, 'audio_cache');
 
-function signLastFmParams(params, secret) {
-  const keys = Object.keys(params).sort();
-  let stringToSign = '';
-  keys.forEach(key => {
-    if (key !== 'format' && key !== 'callback') {
-      stringToSign += key + params[key];
-    }
-  });
-  stringToSign += secret;
-  return md5(stringToSign);
+if (!fs.existsSync(AUDIO_CACHE_DIR)) fs.mkdirSync(AUDIO_CACHE_DIR, { recursive: true });
+[HISTORY_FILE, STATS_FILE, SETTINGS_FILE, LIKES_FILE, PLAYLISTS_FILE].forEach(file => {
+  if (!fs.existsSync(file)) fs.writeFileSync(file, file === SETTINGS_FILE ? '{}' : '[]');
+});
+
+function isNewer(latest, current) {
+  const l = latest.split('.').map(Number);
+  const c = current.split('.').map(Number);
+  for (let i = 0; i < 3; i++) {
+    if (l[i] > c[i]) return true;
+    if (l[i] < c[i]) return false;
+  }
+  return false;
 }
 
-ipcMain.handle('lastfm-get-token', async () => {
-  const apiKey = process.env.LASTFM_API_KEY || '42f75f92a1059f145f946ed71c356396';
-  return null;
+async function checkAndDownloadUpdate() {
+  try {
+    const res = await axios.get(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`);
+    const latestVersion = res.data.tag_name.replace('v', '');
+
+    if (isNewer(latestVersion, CURRENT_VERSION)) {
+      console.log(`[Updater] New version found: ${latestVersion}. Starting download...`);
+      mainWindow?.webContents.send('update-available', latestVersion);
+
+      const asset = res.data.assets.find(a => a.name.endsWith('.exe') && !a.name.includes('blockmap'));
+      if (asset) {
+        const downloadUrl = asset.browser_download_url;
+        const tempPath = path.join(app.getPath('temp'), `SoundCloudDesktop-Setup-${latestVersion}.exe`);
+
+        const response = await axios({
+          method: 'get',
+          url: downloadUrl,
+          responseType: 'stream'
+        });
+
+        const totalLength = response.headers['content-length'];
+        let downloadedLength = 0;
+
+        const writer = fs.createWriteStream(tempPath);
+        response.data.on('data', (chunk) => {
+          downloadedLength += chunk.length;
+          const progress = Math.round((downloadedLength / totalLength) * 100);
+          mainWindow?.webContents.send('update-progress', progress);
+        });
+
+        response.data.pipe(writer);
+
+        writer.on('finish', () => {
+          updateDownloadedPath = tempPath;
+          console.log('[Updater] Update downloaded to:', tempPath);
+          mainWindow?.webContents.send('update-downloaded', latestVersion);
+        });
+      }
+    }
+  } catch (err) {
+    console.error('[Updater] Update check failed:', err);
+  }
+}
+
+
+
+ipcMain.handle('install-update', () => {
+  if (updateDownloadedPath) {
+    const { shell } = require('electron');
+    shell.openPath(updateDownloadedPath);
+    setTimeout(() => app.quit(), 1000);
+  }
 });
 
 let rpcReady = false;
@@ -169,7 +223,6 @@ let CLIENT_ID = process.env.SOUNDCLOUD_CLIENT_ID;
 let OAUTH_TOKEN = null;
 let SC_USER = null;
 
-const AUTH_FILE = path.join(app.getPath('userData'), 'auth.json');
 try {
   if (fs.existsSync(AUTH_FILE)) {
     const auth = JSON.parse(fs.readFileSync(AUTH_FILE));
@@ -261,17 +314,30 @@ async function getClientId() {
 }
 
 async function makeRequest(url, options = {}, retries = 1) {
-  return new Promise(async (resolve, reject) => {
-    if (url.includes('client_id=undefined') || !CLIENT_ID) {
-      await getClientId();
-      url = url.replace('client_id=undefined', `client_id=${CLIENT_ID}`);
-    }
+  if (url.includes('client_id=undefined') || !CLIENT_ID) {
+    await getClientId();
+    url = url.replace('client_id=undefined', `client_id=${CLIENT_ID}`);
+  }
 
+  return new Promise((resolve, reject) => {
     const request = electronNet.request({
       url,
       method: options.method || 'GET',
       session: session.defaultSession
     });
+
+    // Mirror a real Chrome request to bypass bot detection
+    request.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    request.setHeader('Accept', 'application/json, text/plain, */*');
+    request.setHeader('Accept-Language', 'en-US,en;q=0.9');
+    request.setHeader('Referer', 'https://soundcloud.com/');
+    request.setHeader('Origin', 'https://soundcloud.com');
+    request.setHeader('sec-ch-ua', '"Not_A Brand";v="8", "Chromium";v="120", "Google Chrome";v="120"');
+    request.setHeader('sec-ch-ua-mobile', '?0');
+    request.setHeader('sec-ch-ua-platform', '"Windows"');
+    request.setHeader('sec-fetch-dest', 'empty');
+    request.setHeader('sec-fetch-mode', 'cors');
+    request.setHeader('sec-fetch-site', 'same-site');
 
     if (options.headers) {
       Object.entries(options.headers).forEach(([key, value]) => {
@@ -288,14 +354,17 @@ async function makeRequest(url, options = {}, retries = 1) {
         const data = Buffer.concat(chunks);
         const dataString = data.toString();
 
-        chunks.length = 0;
-
-        if (response.statusCode === 401 && retries > 0 && !url.includes('soundcloud.com/connect')) {
+        if ((response.statusCode === 401 || response.statusCode === 400) && retries > 0 && !url.includes('soundcloud.com/connect')) {
           await getClientId();
           const newUrl = url.includes('client_id=')
             ? url.replace(/client_id=[^&]+/, `client_id=${CLIENT_ID}`)
-            : url;
-          resolve(await makeRequest(newUrl, options, retries - 1));
+            : (url.includes('?') ? `${url}&client_id=${CLIENT_ID}` : `${url}?client_id=${CLIENT_ID}`);
+          try {
+            const retryRes = await makeRequest(newUrl, options, retries - 1);
+            resolve(retryRes);
+          } catch (e) {
+            reject(e);
+          }
           return;
         }
 
@@ -404,41 +473,10 @@ function createWindow() {
 
 
   mainWindow.once('ready-to-show', () => {
-    if (!isDev) {
-      autoUpdater.checkForUpdates().catch(err => {
-        console.error('Failed to check for updates:', err);
-      });
-    }
+    setTimeout(checkAndDownloadUpdate, 5000);
   });
 }
 
-autoUpdater.autoDownload = true;
-autoUpdater.allowPrerelease = false;
-
-autoUpdater.on('checking-for-update', () => {
-  console.log('[Updater] Checking for updates...');
-});
-
-autoUpdater.on('update-available', (info) => {
-  console.log('[Updater] Update available:', info.version);
-});
-
-autoUpdater.on('update-not-available', () => {
-  console.log('[Updater] No update available.');
-});
-
-autoUpdater.on('error', (err) => {
-  console.error('[Updater] Error:', err);
-});
-
-autoUpdater.on('download-progress', (progressObj) => {
-  const logMessage = `[Updater] Download speed: ${progressObj.bytesPerSecond} - ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
-  console.log(logMessage);
-});
-
-autoUpdater.on('update-downloaded', () => {
-  console.log('[Updater] Update downloaded. Installing on quit.');
-});
 
 ipcMain.handle('search-tracks', async (event, query, nextHref = null) => {
   try {
@@ -540,9 +578,8 @@ async function downloadTrackToCache(url, filePath) {
 
 ipcMain.handle('search-users', async (event, query, next_href) => {
   try {
-    // if (!CLIENT_ID) throw new Error('Client ID not found');
     const url = next_href ? `${next_href}&client_id=${CLIENT_ID}` : `https://api-v2.soundcloud.com/search/users?q=${encodeURIComponent(query)}&client_id=${CLIENT_ID}&limit=20&offset=0`;
-    const response = await axios.get(url);
+    const response = await makeRequest(url);
     return response.data;
   } catch (error) {
     console.error('Search users error:', error);
@@ -591,12 +628,7 @@ ipcMain.handle('get-artist-details', async (event, userId) => {
 
 
 
-const LIKES_FILE = path.join(app.getPath('userData'), 'likes.json');
-const AUDIO_CACHE_DIR = path.join(app.getPath('userData'), 'audio_cache');
-
-if (!fs.existsSync(AUDIO_CACHE_DIR)) {
-  fs.mkdirSync(AUDIO_CACHE_DIR, { recursive: true });
-}
+// Likes initialization handled at top
 
 function cleanOldCache() {
   try {
@@ -630,9 +662,7 @@ let _likes = [];
 try { _likes = JSON.parse(fs.readFileSync(LIKES_FILE)); } catch (e) { _likes = []; }
 
 
-if (!fs.existsSync(LIKES_FILE)) {
-  fs.writeFileSync(LIKES_FILE, '[]');
-}
+// Initialized at top
 
 ipcMain.handle('get-likes', async () => {
   return _likes;
@@ -653,10 +683,10 @@ ipcMain.handle('toggle-like', async (event, track) => {
       }
     }
 
-    fs.writeFile(LIKES_FILE, JSON.stringify(_likes), () => { });
+    fs.writeFileSync(LIKES_FILE, JSON.stringify(_likes));
 
     if (OAUTH_TOKEN && track.id && SC_USER) {
-      syncLikeToBrowser(track.id, isLiking);
+      syncActionToSC(track.id, isLiking, 'track');
     }
 
     return _likes;
@@ -666,9 +696,34 @@ ipcMain.handle('toggle-like', async (event, track) => {
   }
 });
 
-async function syncLikeToBrowser(trackId, isLiking) {
-  let syncWindow = null;
+const syncQueue = [];
+let isProcessingSync = false;
 
+async function syncActionToSC(itemId, isLiking, type = 'track') {
+  if (!OAUTH_TOKEN || !itemId) {
+    console.warn(`[Sync] Skipping sync: missing credentials or item ID`);
+    return;
+  }
+
+  syncQueue.push({ itemId, isLiking, type });
+  processSyncQueue();
+}
+
+async function processSyncQueue() {
+  if (isProcessingSync || syncQueue.length === 0) return;
+  isProcessingSync = true;
+
+  const { itemId, isLiking, type } = syncQueue.shift();
+  const method = isLiking ? 'PUT' : 'DELETE';
+  const endpoint = type === 'track' ? 'track_likes' : 'playlist_likes';
+
+  // Try to use SC_USER.id if available, fallback to 'me'
+  const userId = (SC_USER && SC_USER.id) ? SC_USER.id : 'me';
+  const url = `https://api-v2.soundcloud.com/users/${userId}/${endpoint}/${itemId}?client_id=${CLIENT_ID}`;
+
+  console.log(`[Sync] Queue status: ${syncQueue.length} items left. Syncing ${type} ${itemId} via Hidden Window...`);
+
+  let syncWindow = null;
   try {
     syncWindow = new BrowserWindow({
       show: false,
@@ -677,23 +732,22 @@ async function syncLikeToBrowser(trackId, isLiking) {
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
+        session: session.defaultSession
       },
     });
 
     await syncWindow.loadURL(`https://soundcloud.com`);
 
-    const method = isLiking ? 'PUT' : 'DELETE';
-    const likeUrl = `https://api-v2.soundcloud.com/users/${SC_USER.id}/track_likes/${trackId}?client_id=${CLIENT_ID}`;
-
     const result = await syncWindow.webContents.executeJavaScript(`
       (async () => {
         try {
-          const response = await fetch('${likeUrl}', {
+          const response = await fetch('${url}', {
             method: '${method}',
             headers: {
               'Authorization': 'OAuth ${OAUTH_TOKEN}',
               'Content-Type': 'application/json'
             },
+            body: ${method === 'PUT' ? "JSON.stringify({})" : "null"},
             credentials: 'include'
           });
           return { ok: response.ok, status: response.status };
@@ -704,15 +758,24 @@ async function syncLikeToBrowser(trackId, isLiking) {
     `);
 
     if (result.ok) {
+      console.log(`[Sync] ${type} ${itemId} synced successfully (Status: ${result.status})`);
     } else {
+      console.error(`[Sync] Failed ${type} ${itemId}. Status: ${result.status}, Error: ${result.error}`);
     }
-  } catch (e) {
+  } catch (err) {
+    console.error(`[Sync] Window error for ${type} ${itemId}:`, err.message);
   } finally {
     if (syncWindow && !syncWindow.isDestroyed()) {
       syncWindow.close();
     }
   }
+
+  setTimeout(() => {
+    isProcessingSync = false;
+    processSyncQueue();
+  }, 1500);
 }
+
 
 ipcMain.handle('clear-likes', async () => {
   try {
@@ -749,7 +812,7 @@ ipcMain.handle('get-recommendations', async (event, trackIds) => {
     }
 
     if (seedTrackIds.length === 0) {
-      const response = await makeRequest(`https://api-v2.soundcloud.com/charts?kind=top&genre=soundcloud%3Aall-music&client_id=${CLIENT_ID}&limit=20`, { headers });
+      const response = await makeRequest(`https://api-v2.soundcloud.com/charts?kind=top&genre=soundcloud%3Agenres%3Aall-music&client_id=${CLIENT_ID}&limit=20&offset=0&region=soundcloud%3Aregions%3Aall`, { headers });
       return response.data.collection.map(item => item.track);
     }
 
@@ -774,35 +837,57 @@ ipcMain.handle('get-recommendations', async (event, trackIds) => {
   }
 });
 
-ipcMain.handle('get-charts', async (event, genre = 'soundcloud:all-music') => {
+ipcMain.handle('get-charts', async (event, genre = 'soundcloud:genres:all-music') => {
   try {
     if (!CLIENT_ID) throw new Error('Client ID not found');
-    const headers = {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      'Accept': 'application/json'
-    };
-    const response = await makeRequest(`https://api-v2.soundcloud.com/charts?kind=top&genre=${encodeURIComponent(genre)}&client_id=${CLIENT_ID}&limit=30`, { headers });
-    return response.data.collection.map(item => item.track);
+
+    let finalGenre = genre;
+    // Keep it simple - API usually expects 'all-music' or 'soundcloud:genres:all-music'
+    if (finalGenre === 'soundcloud:all-music') finalGenre = 'all-music';
+    if (!finalGenre.startsWith('soundcloud:genres:') && finalGenre !== 'all-music') {
+      finalGenre = `soundcloud:genres:${finalGenre}`;
+    }
+
+    // Region might be required for some calls
+    const url = `https://api-v2.soundcloud.com/charts?kind=top&genre=${encodeURIComponent(finalGenre)}&region=soundcloud:regions:all-nations&client_id=${CLIENT_ID}&limit=50&offset=0`;
+    const response = await makeRequest(url);
+
+    if (response.data && response.data.collection) {
+      return response.data.collection
+        .filter(item => item && item.track)
+        .map(item => item.track);
+    }
+    return [];
   } catch (error) {
     console.error('Charts error:', error);
     return [];
   }
 });
 
-const PLAYLISTS_FILE = path.join(app.getPath('userData'), 'playlists.json');
+ipcMain.handle('get-station-tracks', async (event, trackId) => {
+  try {
+    console.log(`[Station Request] Received ID: ${trackId} (Type: ${typeof trackId})`);
 
-if (!fs.existsSync(PLAYLISTS_FILE)) {
-  fs.writeFileSync(PLAYLISTS_FILE, '[]');
-}
+    // Ensure trackId is a number or numeric string
+    const id = (typeof trackId === 'object' && trackId !== null) ? trackId.id : trackId;
 
-const HISTORY_FILE = path.join(app.getPath('userData'), 'history.json');
+    if (!id || isNaN(id)) {
+      console.error(`[Station Request] Invalid Track ID: ${id}`);
+      return [];
+    }
 
+    // Fetch related tracks to form a station
+    const url = `https://api-v2.soundcloud.com/tracks/${id}/related?client_id=${CLIENT_ID}&limit=50&offset=0`;
+    const response = await makeRequest(url);
 
-if (!fs.existsSync(HISTORY_FILE)) {
-  fs.writeFileSync(HISTORY_FILE, JSON.stringify([]));
-}
+    return response.data.collection || [];
+  } catch (error) {
+    console.error('Station error:', error);
+    return [];
+  }
+});
 
-const SETTINGS_FILE = path.join(app.getPath('userData'), 'settings.json');
+// Initialized at top
 
 
 const defaultSettings = {
@@ -813,14 +898,10 @@ const defaultSettings = {
   volume: 1,
   language: 'ru',
   sidebarMode: 'Standard',
-  sidebarMode: 'Standard',
-  discordClientId: '1458763452041662618',
-  lastfmSessionKey: null,
-  lastfmUsername: null,
-  lastfmEnabled: false
+  discordClientId: '1458763452041662618'
 };
 
-if (!fs.existsSync(SETTINGS_FILE)) {
+if (fs.readFileSync(SETTINGS_FILE, 'utf8') === '{}') {
   fs.writeFileSync(SETTINGS_FILE, JSON.stringify(defaultSettings));
 }
 
@@ -859,6 +940,57 @@ ipcMain.handle('get-history', async () => {
   }
 });
 
+ipcMain.handle('get-stats', async () => {
+  try {
+    const data = fs.readFileSync(STATS_FILE, 'utf8');
+    return JSON.parse(data);
+  } catch (error) {
+    console.error('Error reading stats file:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('record-play', async (event, playEvent) => {
+  try {
+    const data = fs.readFileSync(STATS_FILE, 'utf8');
+    let stats = JSON.parse(data);
+    stats.unshift({
+      ...playEvent,
+      timestamp: Date.now()
+    });
+
+    if (stats.length > 5000) {
+      stats = stats.slice(0, 5000);
+    }
+
+    fs.writeFileSync(STATS_FILE, JSON.stringify(stats));
+    return true;
+  } catch (error) {
+    console.error('Error recording play stats:', error);
+    return false;
+  }
+});
+
+ipcMain.handle('clear-stats', async () => {
+  try {
+    fs.writeFileSync(STATS_FILE, '[]');
+    return [];
+  } catch (error) {
+    console.error('Error clearing stats:', error);
+    return [];
+  }
+});
+
+ipcMain.handle('clear-history', async () => {
+  try {
+    fs.writeFileSync(HISTORY_FILE, '[]');
+    return [];
+  } catch (error) {
+    console.error('Error clearing history:', error);
+    return [];
+  }
+});
+
 ipcMain.handle('import-sc-likes', async (event, profileUrl) => {
   try {
     if (!CLIENT_ID) throw new Error('Client ID not found');
@@ -870,8 +1002,21 @@ ipcMain.handle('import-sc-likes', async (event, profileUrl) => {
 
     if (OAUTH_TOKEN) headers['Authorization'] = `OAuth ${OAUTH_TOKEN}`;
 
+    let fullUrl = profileUrl;
+    if (fullUrl.includes('/you') && OAUTH_TOKEN) {
+      console.log(`[Import] Detected 'you' URL, using current account context`);
+      const meRes = await makeRequest(`https://api-v2.soundcloud.com/me?client_id=${CLIENT_ID}`, {
+        headers: { 'Authorization': `OAuth ${OAUTH_TOKEN}` }
+      });
+      fullUrl = meRes.data.permalink_url;
+    } else if (!fullUrl.startsWith('http')) {
+      fullUrl = `https://soundcloud.com/${fullUrl.replace('@', '')}`;
+    }
+
+    console.log(`[Import] Resolving profile: ${fullUrl}`);
+
     const resolveRes = await makeRequest(
-      `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(profileUrl)}&client_id=${CLIENT_ID}`,
+      `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(fullUrl)}&client_id=${CLIENT_ID}`,
       { headers }
     );
     const userId = resolveRes.data.id;
@@ -895,57 +1040,20 @@ ipcMain.handle('import-sc-likes', async (event, profileUrl) => {
       if (!likesRes.data.next_href) break;
     }
 
+    allSCLikes.forEach(track => {
+      if (track) track.kind = 'track';
+    });
+
     const localIds = new Set(_likes.map(t => t.id));
     const newTracks = allSCLikes.filter(track => track && track.id && !localIds.has(track.id));
 
     if (newTracks.length > 0) {
+      console.log(`[Import] Adding ${newTracks.length} new tracks to likes`);
       _likes = [...newTracks, ..._likes];
       fs.writeFileSync(LIKES_FILE, JSON.stringify(_likes));
     }
 
-    // --- PLAYLIST IMPORT LOGIC ---
-    const allSCPlaylists = [];
-    let playlistsUrl = `https://api-v2.soundcloud.com/users/${userId}/playlists_without_albums?client_id=${CLIENT_ID}&limit=200&offset=0`;
-
-    while (playlistsUrl && allSCPlaylists.length < 500) {
-      const res = await makeRequest(playlistsUrl, { headers }).catch(() => ({ data: { collection: [] } }));
-      const collection = res.data.collection || [];
-      collection.forEach(item => {
-        if (item && item.id) allSCPlaylists.push(item);
-      });
-      playlistsUrl = res.data.next_href ? `${res.data.next_href}&client_id=${CLIENT_ID}` : null;
-      if (!res.data.next_href) break;
-    }
-
-    let likedPlaylistsUrl = `https://api-v2.soundcloud.com/users/${userId}/playlist_likes?client_id=${CLIENT_ID}&limit=200&offset=0`;
-    while (likedPlaylistsUrl && allSCPlaylists.length < 500) {
-      const res = await makeRequest(likedPlaylistsUrl, { headers }).catch(() => ({ data: { collection: [] } }));
-      const collection = res.data.collection || [];
-      collection.forEach(item => {
-        if (item && item.playlist) allSCPlaylists.push(item.playlist);
-      });
-      likedPlaylistsUrl = res.data.next_href ? `${res.data.next_href}&client_id=${CLIENT_ID}` : null;
-      if (!res.data.next_href) break;
-    }
-
-    // Read existing playlists
-    let existingPlaylists = [];
-    try {
-      const data = fs.readFileSync(PLAYLISTS_FILE);
-      existingPlaylists = JSON.parse(data);
-    } catch (e) {
-      existingPlaylists = [];
-    }
-
-    const localPlaylistIds = new Set(existingPlaylists.map(p => p.id));
-    const newPlaylists = allSCPlaylists.filter(p => p && p.id && !localPlaylistIds.has(p.id));
-
-    if (newPlaylists.length > 0) {
-      existingPlaylists = [...newPlaylists, ...existingPlaylists];
-      fs.writeFileSync(PLAYLISTS_FILE, JSON.stringify(existingPlaylists));
-    }
-
-    return { tracks: _likes, playlists: existingPlaylists };
+    return _likes;
   } catch (error) {
     console.error('Import error details:', error.response ? error.response.status + ' ' + JSON.stringify(error.response.data) : error.message);
     throw error;
@@ -963,8 +1071,21 @@ ipcMain.handle('import-sc-playlists', async (event, profileUrl) => {
 
     if (OAUTH_TOKEN) headers['Authorization'] = `OAuth ${OAUTH_TOKEN}`;
 
+    let fullUrl = profileUrl;
+    if (fullUrl.includes('/you') && OAUTH_TOKEN) {
+      console.log(`[Import] Detected 'you' URL for playlists, using current account context`);
+      const meRes = await makeRequest(`https://api-v2.soundcloud.com/me?client_id=${CLIENT_ID}`, {
+        headers: { 'Authorization': `OAuth ${OAUTH_TOKEN}` }
+      });
+      fullUrl = meRes.data.permalink_url;
+    } else if (!fullUrl.startsWith('http')) {
+      fullUrl = `https://soundcloud.com/${fullUrl.replace('@', '')}`;
+    }
+
+    console.log(`[Import] Resolving profile for playlists: ${fullUrl}`);
+
     const resolveRes = await makeRequest(
-      `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(profileUrl)}&client_id=${CLIENT_ID}`,
+      `https://api-v2.soundcloud.com/resolve?url=${encodeURIComponent(fullUrl)}&client_id=${CLIENT_ID}`,
       { headers }
     );
     const userId = resolveRes.data.id;
@@ -972,43 +1093,65 @@ ipcMain.handle('import-sc-playlists', async (event, profileUrl) => {
     if (!userId) throw new Error('Could not resolve user from URL');
 
     const allSCPlaylists = [];
-    let nextUrl = `https://api-v2.soundcloud.com/users/${userId}/playlists_without_albums?client_id=${CLIENT_ID}&limit=200&offset=0`;
 
-    while (nextUrl && allSCPlaylists.length < 500) {
-      const playlistsRes = await makeRequest(nextUrl, { headers });
-      const collection = playlistsRes.data.collection || [];
-
-      collection.forEach(item => {
-        if (item && item.id) {
-          allSCPlaylists.push(item);
-        }
-      });
-
-      nextUrl = playlistsRes.data.next_href ? `${playlistsRes.data.next_href}&client_id=${CLIENT_ID}` : null;
-      if (!playlistsRes.data.next_href) break;
+    // 1. Fetch created playlists (standard endpoint)
+    let playlistsUrl = `https://api-v2.soundcloud.com/users/${userId}/playlists?client_id=${CLIENT_ID}&limit=200&offset=0`;
+    while (playlistsUrl && allSCPlaylists.length < 500) {
+      try {
+        const res = await makeRequest(playlistsUrl, { headers });
+        const collection = res.data.collection || [];
+        collection.forEach(item => {
+          if (item && item.id) {
+            item.kind = 'playlist';
+            allSCPlaylists.push(item);
+          }
+        });
+        playlistsUrl = res.data.next_href ? `${res.data.next_href}${res.data.next_href.includes('client_id') ? '' : `&client_id=${CLIENT_ID}`}` : null;
+      } catch (e) { console.error('Error fetching created playlists:', e); break; }
     }
 
-    // Also fetch liked playlists (playlists liked by the user, not created by them)
+    // 2. Fetch created playlists (alternative endpoint)
+    if (allSCPlaylists.length < 50) {
+      let altUrl = `https://api-v2.soundcloud.com/users/${userId}/playlists_without_albums?client_id=${CLIENT_ID}&limit=200&offset=0`;
+      while (altUrl && allSCPlaylists.length < 500) {
+        try {
+          const res = await makeRequest(altUrl, { headers });
+          const collection = res.data.collection || [];
+          const ids = new Set(allSCPlaylists.map(p => p.id));
+          collection.forEach(item => {
+            if (item && item.id && !ids.has(item.id)) {
+              item.kind = 'playlist';
+              allSCPlaylists.push(item);
+            }
+          });
+          altUrl = res.data.next_href ? `${res.data.next_href}${res.data.next_href.includes('client_id') ? '' : `&client_id=${CLIENT_ID}`}` : null;
+        } catch (e) { break; }
+      }
+    }
+
+    // 3. Fetch liked playlists
     let likedPlaylistsUrl = `https://api-v2.soundcloud.com/users/${userId}/playlist_likes?client_id=${CLIENT_ID}&limit=200&offset=0`;
-
     while (likedPlaylistsUrl && allSCPlaylists.length < 500) {
-      const likedPlaylistsRes = await makeRequest(likedPlaylistsUrl, { headers }).catch(() => ({ data: { collection: [] } }));
-      const collection = likedPlaylistsRes.data.collection || [];
-
-      collection.forEach(item => {
-        if (item && item.playlist) {
-          allSCPlaylists.push(item.playlist);
-        }
-      });
-
-      likedPlaylistsUrl = likedPlaylistsRes.data.next_href ? `${likedPlaylistsRes.data.next_href}&client_id=${CLIENT_ID}` : null;
-      if (!likedPlaylistsRes.data.next_href) break;
+      try {
+        const res = await makeRequest(likedPlaylistsUrl, { headers });
+        const collection = res.data.collection || [];
+        const ids = new Set(allSCPlaylists.map(p => p.id));
+        collection.forEach(item => {
+          if (item && item.playlist && !ids.has(item.playlist.id)) {
+            item.playlist.kind = 'playlist';
+            allSCPlaylists.push(item.playlist);
+          }
+        });
+        likedPlaylistsUrl = res.data.next_href ? `${res.data.next_href}${res.data.next_href.includes('client_id') ? '' : `&client_id=${CLIENT_ID}`}` : null;
+      } catch (e) { break; }
     }
+
+    console.log(`[Import] Found ${allSCPlaylists.length} total playlists from SoundCloud`);
 
     // Read existing playlists
     let existingPlaylists = [];
     try {
-      const data = fs.readFileSync(PLAYLISTS_FILE);
+      const data = fs.readFileSync(PLAYLISTS_FILE, 'utf8');
       existingPlaylists = JSON.parse(data);
     } catch (e) {
       existingPlaylists = [];
@@ -1018,6 +1161,7 @@ ipcMain.handle('import-sc-playlists', async (event, profileUrl) => {
     const newPlaylists = allSCPlaylists.filter(playlist => playlist && playlist.id && !localIds.has(playlist.id));
 
     if (newPlaylists.length > 0) {
+      console.log(`[Import] Adding ${newPlaylists.length} new playlists to local storage`);
       existingPlaylists = [...newPlaylists, ...existingPlaylists];
       fs.writeFileSync(PLAYLISTS_FILE, JSON.stringify(existingPlaylists));
     }
@@ -1306,6 +1450,11 @@ ipcMain.handle('toggle-like-playlist', async (event, playlist) => {
     }
 
     fs.writeFileSync(PLAYLISTS_FILE, JSON.stringify(playlists));
+
+    if (OAUTH_TOKEN && playlist.id && SC_USER) {
+      syncActionToSC(playlist.id, existingIndex < 0, 'playlist');
+    }
+
     return playlists;
   } catch (error) {
     console.error('Error toggling playlist like:', error);
@@ -1443,6 +1592,18 @@ ipcMain.handle('select-image', async () => {
   });
   if (result.canceled || result.filePaths.length === 0) return null;
   return result.filePaths[0].replace(/\\/g, '/');
+});
+
+ipcMain.handle('copy-image-to-clipboard', async (event, dataUrl) => {
+  try {
+    const { nativeImage, clipboard } = require('electron');
+    const image = nativeImage.createFromDataURL(dataUrl);
+    clipboard.writeImage(image);
+    return true;
+  } catch (error) {
+    console.error('Failed to copy image to clipboard:', error);
+    return false;
+  }
 });
 
 function createTray() {

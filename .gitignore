@@ -10,3 +10,10 @@ release
 .vscode
 *.log
 .agent
+likes.json
+history.json
+stats.json
+settings.json
+auth.json
+playlists.json
+audio_cache/
